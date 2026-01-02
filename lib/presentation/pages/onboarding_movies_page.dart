@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:math' as math;
 import '../../core/di/injection.dart';
 import '../../domain/entities/movie.dart';
@@ -25,17 +26,17 @@ class _OnboardingMoviesPageState extends State<OnboardingMoviesPage> {
     _store = getIt<OnboardingStore>();
     _store.loadMovies();
     
-    // Kartların büyük ve yapışık olması için yüksek viewportFraction
+    // Tasarım: 180w + 15px boşluk = 195px slot.
+    // ViewportFraction: 195 / 375 = 0.52
     _pageController = PageController(
-      viewportFraction: 0.85, 
+      viewportFraction: 0.52, 
       initialPage: 0,
     );
     
     _pageController.addListener(() {
       if (_pageController.hasClients) {
         _store.updateWheelPosition(_pageController.page ?? 0);
-        
-        if ((_pageController.page ?? 0) >= _store.movies.length - 4) {
+        if ((_pageController.page ?? 0) >= _store.movies.length - 10) {
           _store.loadMovies(loadMore: true);
         }
       }
@@ -57,60 +58,132 @@ class _OnboardingMoviesPageState extends State<OnboardingMoviesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Minimal Header
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 40, 24, 0),
-              child: _HeaderWidget(),
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // 1. THE DRUM WHEEL
+          Positioned.fill(
+            child: Observer(
+              builder: (_) {
+                if (_store.movies.isEmpty && _store.isLoadingMovies) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.white24));
+                }
+                return PageView.builder(
+                  controller: _pageController,
+                  itemCount: _store.movies.length,
+                  pageSnapping: false, // Serbest akış
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  itemBuilder: (context, index) {
+                    return _WheelCard(
+                      index: index,
+                      movie: _store.movies[index],
+                      store: _store,
+                      imageUrl: _getImageUrl(_store.movies[index].posterPath),
+                    );
+                  },
+                );
+              },
             ),
+          ),
 
-            // The Grand Convex Wheel
-            Expanded(
-              child: Observer(
-                builder: (_) {
-                  if (_store.movies.isEmpty && _store.isLoadingMovies) {
-                    return const Center(child: CircularProgressIndicator(color: Colors.white12));
-                  }
-
-                  return PageView.builder(
-                    controller: _pageController,
-                    itemCount: _store.movies.length,
-                    clipBehavior: Clip.none, // Yan kartların kesilmemesi için
-                    itemBuilder: (context, index) {
-                      return _DrumItem(
-                        index: index,
-                        movie: _store.movies[index],
-                        store: _store,
-                        imageUrl: _getImageUrl(_store.movies[index].posterPath),
-                      );
-                    },
-                  );
-                },
+          // 2. TOP BLACK MASK (DÜZGÜN KAVİS)
+          // Ekranın üst kısmını kesen devasa bir tam daire.
+          Positioned(
+            top: -380.h,
+            left: -100.w,
+            right: -100.w,
+            child: IgnorePointer(
+              child: Container(
+                height: 500.h,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
+          ),
 
-            // Footer
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: _FooterWidget(store: _store),
+          // 3. BOTTOM BLACK MASK (DÜZGÜN KAVİS)
+          Positioned(
+            bottom: -380.h,
+            left: -100.w,
+            right: -100.w,
+            child: IgnorePointer(
+              child: Container(
+                height: 500.h,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+
+          // 4. HEADER CONTENT
+          Positioned(
+            top: 60.h,
+            left: 20.w,
+            right: 20.w,
+            child: Observer(
+              builder: (_) {
+                final hasSelection = _store.selectedMovieIds.isNotEmpty;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasSelection ? 'Keep Going 👍' : 'Welcome',
+                      style: TextStyle(color: Colors.white, fontSize: 32.sp, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Choose your 3 favorite movies',
+                      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 18.sp),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // 5. FOOTER BUTTON
+          Positioned(
+            bottom: 40.h,
+            left: 20.w,
+            right: 20.w,
+            child: Observer(
+              builder: (_) {
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _store.canContinueFromMovies 
+                      ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OnboardingGenresPage(store: _store)))
+                      : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFCC3333),
+                      disabledBackgroundColor: const Color(0xFFCC3333).withOpacity(0.15),
+                      padding: EdgeInsets.symmetric(vertical: 20.h),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                    ),
+                    child: Text('Continue', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DrumItem extends StatelessWidget {
+class _WheelCard extends StatelessWidget {
   final int index;
   final Movie movie;
   final OnboardingStore store;
   final String imageUrl;
 
-  const _DrumItem({
+  const _WheelCard({
     required this.index,
     required this.movie,
     required this.store,
@@ -124,169 +197,84 @@ class _DrumItem extends StatelessWidget {
         final double page = store.wheelScrollPosition;
         final double diff = index - page;
         
-        // --- CONVEX DRUM MATEMATİĞİ ---
-        // Çok küçük bir açı (sapma) kullanarak kartları birbirine yapıştırıyoruz
-        final double angle = diff * 0.25; 
+        // --- KUSURSUZ YAPIŞIK SİLİNDİR MATEMATİĞİ ---
+        // 180w + 15px = 195.0 total slot.
+        const double slotWidth = 195.0;
+        const double radius = 400.0;
         
-        final double radius = 400.0;
-        final double translateZ = (math.cos(angle) - 1.0) * radius;
-        final double translateX = math.sin(angle) * radius;
-        final double rotationY = angle;
+        // Açı = Yay uzunluğu / Yarıçap
+        final double angle = (diff * slotWidth) / radius;
 
-        final bool isSelected = store.selectedMovieIds.contains(movie.id);
-
+        // Transformasyon:
+        // PageView'in varsayılan yatay yerleşimini (diff * slotWidth) dengeleyip,
+        // Kartı dairesel yay (sin/cos) üzerindeki gerçek noktasına çekiyoruz.
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.0008) // Yumuşak perspektif
-            ..translate(translateX, 0.0, translateZ)
-            ..rotateY(rotationY),
+            ..setEntry(3, 2, 0.001)
+            ..translate(
+              (math.sin(angle) * radius) - (diff * slotWidth), // Yatay düzeltme
+              0.0, 
+              (math.cos(angle) - 1.0) * radius // Derinlik (Z)
+            )
+            ..rotateY(angle),
           child: Center(
             child: GestureDetector(
               onTap: () => store.toggleMovieSelection(movie.id),
-              child: ClipPath(
-                clipper: _DrumClipper(diff: diff),
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.8, // Büyük kartlar
-                  height: MediaQuery.of(context).size.height * 0.45,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF121212),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFFCC3333) : Colors.white10,
-                      width: isSelected ? 4 : 1,
-                    ),
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => const Icon(Icons.movie, color: Colors.white10),
-                      ),
-                      
-                      // Renkli Overlay (Seçili halde pembe/beyaz geçişi)
-                      if (isSelected)
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white.withOpacity(0.35),
-                                Colors.red.withOpacity(0.1),
-                              ],
-                            ),
-                          ),
-                        ),
+              child: _CardView(movie: movie, store: store, imageUrl: imageUrl),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
-                      // Checkmark
-                      if (isSelected)
-                        Positioned(
-                          bottom: 20,
-                          right: 20,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFCC3333),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.check, color: Colors.white, size: 22),
-                          ),
-                        ),
-                    ],
-                  ),
+class _CardView extends StatelessWidget {
+  final Movie movie;
+  final OnboardingStore store;
+  final String imageUrl;
+
+  const _CardView({required this.movie, required this.store, required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = store.selectedMovieIds.contains(movie.id);
+
+    return Container(
+      width: 180.w, // TAM 180w
+      height: 252.h, // TAM 252h
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(
+          color: isSelected ? const Color(0xFFCC3333) : Colors.white10,
+          width: isSelected ? 4.w : 1.w,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4.r),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(color: Colors.white12),
+            ),
+            if (isSelected) Container(color: Colors.white24),
+            if (isSelected)
+              Positioned(
+                bottom: 10.h,
+                right: 10.w,
+                child: Container(
+                  padding: EdgeInsets.all(4.w),
+                  decoration: const BoxDecoration(color: Color(0xFFCC3333), shape: BoxShape.circle),
+                  child: Icon(Icons.check, color: Colors.white, size: 16.w),
                 ),
               ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Tasarımdaki kavisli üst ve alt kenarları sağlayan Clipper
-class _DrumClipper extends CustomClipper<Path> {
-  final double diff;
-  _DrumClipper({required this.diff});
-
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    // Kavis miktarı (Cylindrical effect)
-    final double arcHeight = 35.0; 
-    
-    path.moveTo(0, arcHeight);
-    
-    // Üst Yay
-    path.quadraticBezierTo(size.width / 2, -arcHeight/2, size.width, arcHeight);
-    
-    path.lineTo(size.width, size.height - arcHeight);
-    
-    // Alt Yay
-    path.quadraticBezierTo(size.width / 2, size.height + arcHeight/2, 0, size.height - arcHeight);
-    
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(_DrumClipper oldClipper) => oldClipper.diff != diff;
-}
-
-class _HeaderWidget extends StatelessWidget {
-  const _HeaderWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    final store = getIt<OnboardingStore>();
-    return Observer(
-      builder: (_) {
-        final hasSelection = store.selectedMovieIds.isNotEmpty;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              hasSelection ? 'Continue to next step 👉' : 'Welcome',
-              style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Choose your 3 favorite movies',
-              style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 18),
-            ),
           ],
-        );
-      },
-    );
-  }
-}
-
-class _FooterWidget extends StatelessWidget {
-  final OnboardingStore store;
-  const _FooterWidget({required this.store});
-
-  @override
-  Widget build(BuildContext context) {
-    return Observer(
-      builder: (_) {
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: store.canContinueFromMovies 
-              ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OnboardingGenresPage(store: store)))
-              : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFCC3333),
-              disabledBackgroundColor: const Color(0xFFCC3333).withOpacity(0.15),
-              padding: const EdgeInsets.symmetric(vertical: 22),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            child: const Text('Continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

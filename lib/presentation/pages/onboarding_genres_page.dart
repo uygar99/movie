@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../stores/onboarding_store.dart';
 import 'home_page.dart';
 
@@ -20,7 +21,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
   }
 
   void _onContinue() {
-    // Navigate to home and remove all previous routes
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomePage()),
       (route) => false,
@@ -30,13 +30,14 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.all(24.w),
               child: Observer(
                 builder: (_) {
                   final hasSelection = widget.store.selectedGenreIds.isNotEmpty;
@@ -45,12 +46,19 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                     children: [
                       Text(
                         hasSelection ? 'Thank you 👍' : 'Welcome',
-                        style: Theme.of(context).textTheme.displayMedium,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       Text(
                         'Choose your 2 favorite genres',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 18.sp,
+                        ),
                       ),
                     ],
                   );
@@ -63,7 +71,7 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
               child: Observer(
                 builder: (_) {
                   if (widget.store.genres.isEmpty && widget.store.isLoadingGenres) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator(color: Colors.white24));
                   }
 
                   if (widget.store.genresError != null && widget.store.genres.isEmpty) {
@@ -71,8 +79,8 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(widget.store.genresError!),
-                          const SizedBox(height: 16),
+                          Text(widget.store.genresError!, style: const TextStyle(color: Colors.white70)),
+                          SizedBox(height: 16.h),
                           ElevatedButton(
                             onPressed: () => widget.store.loadGenres(),
                             child: const Text('Retry'),
@@ -83,12 +91,12 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                   }
 
                   return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       childAspectRatio: 1.2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16.w,
+                      mainAxisSpacing: 16.h,
                     ),
                     itemCount: widget.store.genres.length,
                     itemBuilder: (context, index) {
@@ -102,20 +110,20 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? Colors.white
-                                : Theme.of(context).colorScheme.secondary,
-                            borderRadius: BorderRadius.circular(50),
+                                : Colors.white10,
+                            borderRadius: BorderRadius.circular(50.r),
                             border: Border.all(
                               color: isSelected
                                   ? const Color(0xFFCC3333)
                                   : Colors.transparent,
-                              width: 2,
+                              width: 2.w,
                             ),
                           ),
                           child: Stack(
                             children: [
                               Center(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
+                                  padding: EdgeInsets.all(8.w),
                                   child: Text(
                                     genre.name,
                                     textAlign: TextAlign.center,
@@ -123,7 +131,7 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                                       color: isSelected
                                           ? Colors.black
                                           : Colors.white,
-                                      fontSize: 14,
+                                      fontSize: 16.sp,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -131,19 +139,19 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                               ),
                               if (isSelected)
                                 Positioned(
-                                  bottom: 8,
-                                  right: 8,
+                                  bottom: 12.h,
+                                  right: 12.w,
                                   child: Container(
-                                    width: 20,
-                                    height: 20,
+                                    width: 24.w,
+                                    height: 24.w,
                                     decoration: const BoxDecoration(
                                       color: Color(0xFFCC3333),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.check,
                                       color: Colors.white,
-                                      size: 12,
+                                      size: 14.w,
                                     ),
                                   ),
                                 ),
@@ -159,7 +167,7 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
 
             // Continue Button
             Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.all(24.w),
               child: Observer(
                 builder: (_) {
                   return SizedBox(
@@ -168,12 +176,13 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                       onPressed: widget.store.canContinueFromGenres ? _onContinue : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFCC3333),
-                        disabledBackgroundColor: const Color(0xFFCC3333).withValues(alpha: 0.5),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        disabledBackgroundColor: const Color(0xFFCC3333).withOpacity(0.15),
+                        padding: EdgeInsets.symmetric(vertical: 20.h),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Continue',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   );
