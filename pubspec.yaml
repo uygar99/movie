@@ -57,6 +57,7 @@ dependencies:
   # Image Caching
   cached_network_image: ^3.4.1
   flutter_screenutil: ^5.9.3
+  google_fonts: ^6.3.3
 
 
 dev_dependencies:

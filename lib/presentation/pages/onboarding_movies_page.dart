@@ -3,8 +3,10 @@ import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import '../../core/di/injection.dart';
+import '../../core/theme/app_theme.dart';
 import '../../domain/entities/movie.dart';
 import '../stores/onboarding_store.dart';
 import 'onboarding_genres_page.dart';
@@ -26,8 +28,6 @@ class _OnboardingMoviesPageState extends State<OnboardingMoviesPage> {
     _store = getIt<OnboardingStore>();
     _store.loadMovies();
     
-    // Tasarım: 180w + 15px boşluk = 195px slot.
-    // ViewportFraction: 195 / 375 = 0.52
     _pageController = PageController(
       viewportFraction: 0.52, 
       initialPage: 0,
@@ -58,20 +58,20 @@ class _OnboardingMoviesPageState extends State<OnboardingMoviesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.black,
       body: Stack(
         children: [
-          // 1. THE DRUM WHEEL
+          // 1. THE GLOBAL DRUM WHEEL
           Positioned.fill(
             child: Observer(
               builder: (_) {
                 if (_store.movies.isEmpty && _store.isLoadingMovies) {
-                  return const Center(child: CircularProgressIndicator(color: Colors.white24));
+                  return const Center(child: CircularProgressIndicator(color: AppTheme.redLight));
                 }
                 return PageView.builder(
                   controller: _pageController,
                   itemCount: _store.movies.length,
-                  pageSnapping: false, // Serbest akış
+                  pageSnapping: false,
                   physics: const BouncingScrollPhysics(),
                   clipBehavior: Clip.none,
                   itemBuilder: (context, index) {
@@ -87,85 +87,67 @@ class _OnboardingMoviesPageState extends State<OnboardingMoviesPage> {
             ),
           ),
 
-          // 2. TOP BLACK MASK (DÜZGÜN KAVİS)
-          // Ekranın üst kısmını kesen devasa bir tam daire.
+          // 2. HEADER CONTENT
           Positioned(
-            top: -380.h,
-            left: -100.w,
-            right: -100.w,
-            child: IgnorePointer(
-              child: Container(
-                height: 500.h,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
-
-          // 3. BOTTOM BLACK MASK (DÜZGÜN KAVİS)
-          Positioned(
-            bottom: -380.h,
-            left: -100.w,
-            right: -100.w,
-            child: IgnorePointer(
-              child: Container(
-                height: 500.h,
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ),
-
-          // 4. HEADER CONTENT
-          Positioned(
-            top: 60.h,
+            top: 88.h, // Top must be 88px as requested
             left: 20.w,
             right: 20.w,
             child: Observer(
               builder: (_) {
-                final hasSelection = _store.selectedMovieIds.isNotEmpty;
+                final isReady = _store.canContinueFromMovies;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      hasSelection ? 'Keep Going 👍' : 'Welcome',
-                      style: TextStyle(color: Colors.white, fontSize: 32.sp, fontWeight: FontWeight.bold),
+                      isReady ? 'Continue to next step 👉' : 'Welcome',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.white,
+                        fontSize: 24.sp, // 24px as requested
+                        fontWeight: FontWeight.w700, // Bold
+                        height: 1.0,
+                      ),
                     ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      'Choose your 3 favorite movies',
-                      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 18.sp),
-                    ),
+                    if (!isReady) ...[
+                      SizedBox(height: 12.h),
+                      Text(
+                        'Choose your 3 favorite movies',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.grayDark,
+                          fontSize: 20.sp, // 20px
+                          fontWeight: FontWeight.w500, // Medium
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
                   ],
                 );
               },
             ),
           ),
 
-          // 5. FOOTER BUTTON
+          // 3. FOOTER BUTTON
           Positioned(
-            bottom: 40.h,
-            left: 20.w,
-            right: 20.w,
+            top: 677.h, // Precise top positioning as requested
+            left: 20.w, // Left positioning as requested
             child: Observer(
               builder: (_) {
                 return SizedBox(
-                  width: double.infinity,
+                  width: 335.w, // Fixed width: 335
+                  height: 56.h, // Fixed height: 56
                   child: ElevatedButton(
                     onPressed: _store.canContinueFromMovies 
                       ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OnboardingGenresPage(store: _store)))
                       : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFCC3333),
-                      disabledBackgroundColor: const Color(0xFFCC3333).withOpacity(0.15),
-                      padding: EdgeInsets.symmetric(vertical: 20.h),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                    child: Text(
+                      'Continue', 
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 16.sp, // 16px as requested
+                        fontWeight: FontWeight.w600, // Semi Bold
+                        color: AppTheme.white,
+                        height: 1.0,
+                      ),
                     ),
-                    child: Text('Continue', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 );
               },
@@ -197,37 +179,83 @@ class _WheelCard extends StatelessWidget {
         final double page = store.wheelScrollPosition;
         final double diff = index - page;
         
-        // --- KUSURSUZ YAPIŞIK SİLİNDİR MATEMATİĞİ ---
-        // 180w + 15px = 195.0 total slot.
-        const double slotWidth = 195.0;
-        const double radius = 400.0;
+        const double slotWidth = 195.0; // 180w + 15px gap
+        const double radius = 360.0;
         
-        // Açı = Yay uzunluğu / Yarıçap
         final double angle = (diff * slotWidth) / radius;
 
-        // Transformasyon:
-        // PageView'in varsayılan yatay yerleşimini (diff * slotWidth) dengeleyip,
-        // Kartı dairesel yay (sin/cos) üzerindeki gerçek noktasına çekiyoruz.
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001)
             ..translate(
-              (math.sin(angle) * radius) - (diff * slotWidth), // Yatay düzeltme
+              (math.sin(angle) * radius) - (diff * slotWidth),
               0.0, 
-              (math.cos(angle) - 1.0) * radius // Derinlik (Z)
+              (math.cos(angle) - 1.0) * radius
             )
             ..rotateY(angle),
           child: Center(
             child: GestureDetector(
               onTap: () => store.toggleMovieSelection(movie.id),
-              child: _CardView(movie: movie, store: store, imageUrl: imageUrl),
+              child: ClipPath(
+                clipper: _GlobalDrumClipper(
+                  globalAngle: angle,
+                  radius: radius,
+                  cardWidth: 180.w,
+                ),
+                child: _CardView(movie: movie, store: store, imageUrl: imageUrl),
+              ),
             ),
           ),
         );
       },
     );
   }
+}
+
+class _GlobalDrumClipper extends CustomClipper<Path> {
+  final double globalAngle; 
+  final double radius;
+  final double cardWidth;
+
+  _GlobalDrumClipper({
+    required this.globalAngle,
+    required this.radius,
+    required this.cardWidth,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final double sweep = cardWidth / radius;
+    final int segments = 20;
+    const double viewLimitCos = 0.60; 
+
+    for (int i = 0; i <= segments; i++) {
+      final double t = i / segments;
+      final double theta = globalAngle + (t - 0.5) * sweep;
+      final double dy = (math.cos(theta) - viewLimitCos).clamp(0, 1) * radius * 0.22;
+      if (i == 0) {
+        path.moveTo(t * size.width, dy);
+      } else {
+        path.lineTo(t * size.width, dy);
+      }
+    }
+
+    for (int i = segments; i >= 0; i--) {
+      final double t = i / segments;
+      final double theta = globalAngle + (t - 0.5) * sweep;
+      final double dy = (math.cos(theta) - viewLimitCos).clamp(0, 1) * radius * 0.22;
+      path.lineTo(t * size.width, size.height - dy);
+    }
+
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_GlobalDrumClipper oldClipper) => 
+      oldClipper.globalAngle != globalAngle;
 }
 
 class _CardView extends StatelessWidget {
@@ -239,42 +267,70 @@ class _CardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = store.selectedMovieIds.contains(movie.id);
+    return Observer(
+      builder: (_) {
+        final isSelected = store.selectedMovieIds.contains(movie.id);
 
-    return Container(
-      width: 180.w, // TAM 180w
-      height: 252.h, // TAM 252h
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(
-          color: isSelected ? const Color(0xFFCC3333) : Colors.white10,
-          width: isSelected ? 4.w : 1.w,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4.r),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.cover,
-              errorWidget: (_, __, ___) => Container(color: Colors.white12),
+        return Container(
+          width: 180.w,
+          height: 252.h,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8.r),
+            color: const Color(0xFF1A1A1A),
+            // Border is now extremely subtle as requested
+            border: Border.all(
+              color: Colors.white.withOpacity(0.05),
+              width: 1.w,
             ),
-            if (isSelected) Container(color: Colors.white24),
-            if (isSelected)
-              Positioned(
-                bottom: 10.h,
-                right: 10.w,
-                child: Container(
-                  padding: EdgeInsets.all(4.w),
-                  decoration: const BoxDecoration(color: Color(0xFFCC3333), shape: BoxShape.circle),
-                  child: Icon(Icons.check, color: Colors.white, size: 16.w),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8.r),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(color: Colors.white12),
                 ),
-              ),
-          ],
-        ),
-      ),
+                
+                // INSET SHADOW EFFECT: box-shadow: 0px 0px 60px 24px #CB2C2C4D inset;
+                if (isSelected)
+                  IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: Alignment.center,
+                          radius: 1.0,
+                          colors: [
+                            const Color(0x00CB2C2C), // Center transparent
+                            AppTheme.selectionInsetRed, // Edges red (#CB2C2C4D)
+                          ],
+                          stops: const [0.4, 1.0], // Spread/Blur simulation
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Checkmark - moved even higher as requested
+                if (isSelected)
+                  Positioned(
+                    bottom: 45.h, 
+                    right: 15.w,
+                    child: Container(
+                      padding: EdgeInsets.all(5.w),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.redLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.check, color: AppTheme.white, size: 20.w),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
