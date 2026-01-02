@@ -6,8 +6,11 @@ import '../../data/repositories/movie_repository_impl.dart';
 import '../../domain/repositories/movie_repository.dart';
 import '../../domain/usecases/get_popular_movies.dart';
 import '../../domain/usecases/get_genres.dart';
+import '../../domain/usecases/get_movies_by_genre.dart';
+import '../../domain/usecases/discover_movies.dart';
 import '../../presentation/stores/movie_store.dart';
 import '../../presentation/stores/onboarding_store.dart';
+import '../../presentation/stores/home_store.dart';
 
 final getIt = GetIt.instance;
 
@@ -28,9 +31,12 @@ Future<void> setupDependencyInjection() async {
   // Use cases
   getIt.registerLazySingleton(() => GetPopularMovies(getIt()));
   getIt.registerLazySingleton(() => GetGenres(getIt()));
+  getIt.registerLazySingleton(() => GetMoviesByGenre(getIt()));
+  getIt.registerLazySingleton(() => DiscoverMovies(getIt()));
 
   // Stores
   getIt.registerFactory(() => MovieStore(getIt()));
   getIt.registerFactory(() => OnboardingStore(getIt(), getIt()));
+  getIt.registerFactory(() => HomeStore(getIt(), getIt(), getIt()));
 }
 

@@ -78,5 +78,39 @@ class MovieRepositoryImpl implements MovieRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, List<Movie>>> getMoviesByGenre(int genreId, {int page = 1}) async {
+    try {
+      final movies = await remoteDataSource.getMoviesByGenre(genreId, page: page);
+      return Right(movies);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return const Left(NetworkFailure('Network connection failed'));
+      }
+      return Left(ServerFailure(e.message ?? 'Server error occurred'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Movie>>> discoverMovies({String? withGenres, int page = 1}) async {
+    try {
+      final movies = await remoteDataSource.discoverMovies(withGenres: withGenres, page: page);
+      return Right(movies);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        return const Left(NetworkFailure('Network connection failed'));
+      }
+      return Left(ServerFailure(e.message ?? 'Server error occurred'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }
 

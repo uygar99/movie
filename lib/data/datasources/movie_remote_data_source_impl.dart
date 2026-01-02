@@ -92,5 +92,55 @@ class MovieRemoteDataSourceImpl implements MovieRemoteDataSource {
       throw Exception('Failed to fetch genres: $e');
     }
   }
+
+  @override
+  Future<List<MovieModel>> getMoviesByGenre(int genreId, {int page = 1}) async {
+    try {
+      final response = await dio.get(
+        '$_baseUrl/discover/movie',
+        queryParameters: {
+          'with_genres': genreId,
+          'page': page,
+          'sort_by': 'popularity.desc',
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $_apiKey',
+            'accept': 'application/json',
+          },
+        ),
+      );
+
+      final results = response.data['results'] as List;
+      return results.map((json) => MovieModel.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch movies by genre: $e');
+    }
+  }
+
+  @override
+  Future<List<MovieModel>> discoverMovies({String? withGenres, int page = 1}) async {
+    try {
+      final response = await dio.get(
+        '$_baseUrl/discover/movie',
+        queryParameters: {
+          if (withGenres != null) 'with_genres': withGenres,
+          'page': page,
+          'sort_by': 'popularity.desc',
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $_apiKey',
+            'accept': 'application/json',
+          },
+        ),
+      );
+
+      final results = response.data['results'] as List;
+      return results.map((json) => MovieModel.fromJson(json)).toList();
+    } catch (e) {
+      throw Exception('Failed to discover movies: $e');
+    }
+  }
 }
 
