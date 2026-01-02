@@ -46,14 +46,14 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
         ),
         child: Stack(
           children: [
-            // 1. Header
+            // 1. Header (Dynamic Title/Desc)
             Positioned(
               top: 88.h,
               left: 20.w,
               right: 20.w,
               child: Observer(
                 builder: (_) {
-                  final isReady = widget.store.selectedGenreIds.length >= 2;
+                  final isReady = widget.store.canContinueFromGenres;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -113,82 +113,86 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                         ),
                         itemCount: widget.store.genres.length,
                         itemBuilder: (context, index) {
-                          final genre = widget.store.genres[index];
-                          final isSelected = widget.store.selectedGenreIds.contains(genre.id);
+                          // CORRECT MOBX PRACTICE: Wrap individual items in Observer for reactive updates
+                          return Observer(
+                            builder: (_) {
+                              final genre = widget.store.genres[index];
+                              final isSelected = widget.store.selectedGenreIds.contains(genre.id);
 
-                          return GestureDetector(
-                            onTap: () => widget.store.toggleGenreSelection(genre.id),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.white, // White background as requested
-                                border: Border.all(
-                                  color: isSelected ? AppTheme.redLight : Colors.transparent,
-                                  width: 3.w,
-                                ),
-                                boxShadow: [
-                                  if (isSelected)
-                                    BoxShadow(
-                                      color: AppTheme.redLight.withOpacity(0.3),
-                                      blurRadius: 15,
-                                      spreadRadius: 2,
+                              return GestureDetector(
+                                onTap: () => widget.store.toggleGenreSelection(genre.id),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 140.w,
+                                  height: 140.h,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(72.r),
+                                    color: AppTheme.white,
+                                    border: Border.all(
+                                      color: isSelected ? AppTheme.redLight : Colors.transparent,
+                                      width: 2.w,
                                     ),
-                                ],
-                              ),
-                              child: Stack(
-                                children: [
-                                  // Genre Name in Black
-                                  Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 12.w),
-                                      child: Text(
-                                        genre.name,
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.inter(
-                                          color: AppTheme.black,
-                                          fontSize: 18.sp,
-                                          fontWeight: FontWeight.w700,
+                                    boxShadow: [
+                                      if (isSelected)
+                                        BoxShadow(
+                                          color: AppTheme.redLight.withOpacity(0.3),
+                                          blurRadius: 15,
+                                          spreadRadius: 2,
                                         ),
-                                      ),
-                                    ),
+                                    ],
                                   ),
-                                  
-                                  // Selection Inset Glow (Simulated)
-                                  if (isSelected)
-                                    IgnorePointer(
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: RadialGradient(
-                                            center: Alignment.center,
-                                            radius: 1.0,
-                                            colors: [
-                                              Colors.transparent,
-                                              AppTheme.redLight.withOpacity(0.15),
-                                            ],
+                                  child: Stack(
+                                    children: [
+                                      Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 12.w),
+                                          child: Text(
+                                            genre.name,
+                                            textAlign: TextAlign.center,
+                                            style: Theme.of(context).textTheme.titleLarge,
                                           ),
                                         ),
                                       ),
-                                    ),
-
-                                  // Checkmark
-                                  if (isSelected)
-                                    Positioned(
-                                      bottom: 15.h,
-                                      right: 15.w,
-                                      child: Container(
-                                        padding: EdgeInsets.all(4.w),
-                                        decoration: const BoxDecoration(
-                                          color: AppTheme.redLight,
-                                          shape: BoxShape.circle,
+                                      
+                                      if (isSelected)
+                                        IgnorePointer(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: RadialGradient(
+                                                center: Alignment.center,
+                                                radius: 1.0,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  AppTheme.redLight.withOpacity(0.15),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                        child: Icon(Icons.check, color: Colors.white, size: 16.w),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
+
+                                      if (isSelected)
+                                        Positioned(
+                                          bottom: 4.h,
+                                          right: 4.w,
+                                          child: Container(
+                                            width: 32.w,
+                                            height: 32.h,
+                                            padding: EdgeInsets.all(6.12.w),
+                                            decoration: const BoxDecoration(
+                                              color: AppTheme.redLight,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const FittedBox(
+                                              child: Icon(Icons.check, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),

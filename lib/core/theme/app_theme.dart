@@ -70,6 +70,13 @@ class AppTheme {
           fontWeight: FontWeight.w700,
           height: 1.0,
         ),
+        // Genre label style: 20px SemiBold Inter
+        titleLarge: GoogleFonts.inter(
+          color: black,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          height: 1.0,
+        ),
         // Fallback or secondary styles
         bodyMedium: GoogleFonts.inter(
           color: gray,
