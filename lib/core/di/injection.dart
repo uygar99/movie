@@ -11,6 +11,7 @@ import '../../domain/usecases/discover_movies.dart';
 import '../../presentation/stores/movie_store.dart';
 import '../../presentation/stores/onboarding_store.dart';
 import '../../presentation/stores/home_store.dart';
+import '../../presentation/stores/paywall_store.dart';
 
 final getIt = GetIt.instance;
 
@@ -36,7 +37,8 @@ Future<void> setupDependencyInjection() async {
 
   // Stores
   getIt.registerFactory(() => MovieStore(getIt()));
-  getIt.registerFactory(() => OnboardingStore(getIt(), getIt()));
+  getIt.registerLazySingleton(() => OnboardingStore(getIt(), getIt()));
   getIt.registerFactory(() => HomeStore(getIt(), getIt(), getIt()));
+  getIt.registerFactory(() => PaywallStore());
 }
 

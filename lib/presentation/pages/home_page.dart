@@ -10,6 +10,7 @@ import '../../domain/entities/movie.dart';
 import '../../domain/entities/genre.dart';
 import '../stores/home_store.dart';
 import '../stores/onboarding_store.dart';
+import 'paywall_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,11 +29,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _homeStore = getIt<HomeStore>();
     
-    // Get selected IDs from onboarding (we should usually persist this or pass it)
-    // For now, I'll try to get it from a singleton if OnboardingStore was one, 
-    // but since it's a factory, let's assume we logic it.
-    // Actually, I'll pass dummy data or try to find a way to get it.
-    // In a real app, these would be in a UserStore.
+    // PERSISTENCE FIX: Getting existing selections from the lazy singleton
     final onboardingStore = getIt<OnboardingStore>();
     _homeStore.init(
       onboardingStore.selectedGenreIds.toList(),
@@ -41,6 +38,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _scrollToGenre(int genreId) {
+    _homeStore.setSelectedGenre(genreId);
     final key = _genreKeys[genreId];
     if (key != null && key.currentContext != null) {
       Scrollable.ensureVisible(
@@ -48,7 +46,6 @@ class _HomePageState extends State<HomePage> {
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
-      _homeStore.setSelectedGenre(genreId);
     }
   }
 
@@ -69,14 +66,33 @@ class _HomePageState extends State<HomePage> {
             // 1. FOR YOU SECTION
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 10.h),
-                child: Text(
-                  'For You ⭐',
-                  style: GoogleFonts.inter(
-                    color: AppTheme.white,
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
+                padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 10.h),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'For You ⭐',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.white,
+                        fontSize: 24.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallPage())),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                        decoration: BoxDecoration(
+                          color: AppTheme.redLight,
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        child: Text(
+                          'GO PRO',
+                          style: GoogleFonts.inter(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -97,14 +113,15 @@ class _HomePageState extends State<HomePage> {
                         return Container(
                           width: 80.w,
                           margin: EdgeInsets.symmetric(horizontal: 5.w),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white12,
+                            border: Border.all(color: Colors.white10, width: 1),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: CachedNetworkImage(
                             imageUrl: _getImageUrl(movie.posterPath),
                             fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(color: Colors.white12),
                             errorWidget: (_, __, ___) => const Center(child: Icon(Icons.movie, color: Colors.white24)),
                           ),
                         );
@@ -115,13 +132,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // Divider
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Divider(color: Colors.white10, thickness: 1),
-              ),
-            ),
+            const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
 
             // 2. MOVIES SECTION HEADER
             SliverToBoxAdapter(
@@ -159,7 +170,6 @@ class _HomePageState extends State<HomePage> {
                                 hintText: 'Search',
                                 hintStyle: GoogleFonts.inter(color: AppTheme.grayDark, fontSize: 16.sp),
                                 border: InputBorder.none,
-                                isCollapsed: true,
                               ),
                             ),
                           ),
@@ -167,13 +177,13 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    SizedBox(height: 16.h),
+                    SizedBox(height: 20.h),
                   ],
                 ),
               ),
             ),
 
-            // 3. GENRE CHIPS (Sticky behavior could be nice but let's start simple)
+            // 3. GENRE CHIPS
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 40.h,
@@ -188,7 +198,8 @@ class _HomePageState extends State<HomePage> {
                         final isSelected = _homeStore.selectedGenreId == genre.id;
                         return GestureDetector(
                           onTap: () => _scrollToGenre(genre.id),
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             margin: EdgeInsets.only(right: 12.w),
                             padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
                             decoration: BoxDecoration(
@@ -205,7 +216,7 @@ class _HomePageState extends State<HomePage> {
                                   genre.name,
                                   style: GoogleFonts.inter(
                                     color: isSelected ? AppTheme.white : AppTheme.black,
-                                    fontSize: 16.sp,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -220,39 +231,54 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // 4. CATEGORIES LIST
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+            // 4. CATEGORIES LIST WITH INDIVIDUAL OBSERVERS
             Observer(
               builder: (_) {
+                if (_homeStore.isLoadingGenres && _homeStore.genres.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Center(child: CircularProgressIndicator(color: AppTheme.redLight)),
+                  );
+                }
+                
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final genre = _homeStore.genres[index];
                       _genreKeys[genre.id] ??= GlobalKey();
 
-                      return Container(
-                        key: _genreKeys[genre.id],
-                        padding: EdgeInsets.symmetric(vertical: 20.h),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.w),
-                              child: Text(
-                                genre.name,
-                                style: GoogleFonts.inter(
-                                  color: AppTheme.white,
-                                  fontSize: 20.sp,
-                                  fontWeight: FontWeight.w600,
+                      // CRITICAL FIX: Wrap each category row in an Observer so it rebuilds when its specific movies finish loading
+                      return Observer(
+                        builder: (_) {
+                          final categoryMovies = _homeStore.moviesByGenre[genre.id] ?? [];
+                          
+                          return Container(
+                            key: _genreKeys[genre.id],
+                            padding: EdgeInsets.symmetric(vertical: 20.h),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+                                  child: Text(
+                                    genre.name,
+                                    style: GoogleFonts.inter(
+                                      color: AppTheme.white,
+                                      fontSize: 20.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                SizedBox(height: 12.h),
+                                _GenreMoviesGrid(
+                                  movies: categoryMovies,
+                                  imageUrlGetter: _getImageUrl,
+                                ),
+                              ],
                             ),
-                            SizedBox(height: 12.h),
-                            _GenreMoviesGrid(
-                              movies: _homeStore.moviesByGenre[genre.id] ?? [],
-                              imageUrlGetter: _getImageUrl,
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
                     childCount: _homeStore.genres.length,
@@ -261,8 +287,7 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             
-            // Padding at bottom
-            SliverToBoxAdapter(child: SizedBox(height: 100.h)),
+            SliverToBoxAdapter(child: SizedBox(height: 80.h)),
           ],
         ),
       ),
@@ -295,7 +320,7 @@ class _GenreMoviesGrid extends StatelessWidget {
         crossAxisSpacing: 10.w,
         childAspectRatio: 0.7,
       ),
-      itemCount: movies.length, // Already limited to 9 in store
+      itemCount: movies.length, 
       itemBuilder: (context, index) {
         final movie = movies[index];
         return ClipRRect(
@@ -305,6 +330,7 @@ class _GenreMoviesGrid extends StatelessWidget {
             child: CachedNetworkImage(
               imageUrl: imageUrlGetter(movie.posterPath),
               fit: BoxFit.cover,
+              placeholder: (_, __) => Container(color: Colors.white12),
               errorWidget: (_, __, ___) => const Icon(Icons.movie, color: Colors.white24),
             ),
           ),

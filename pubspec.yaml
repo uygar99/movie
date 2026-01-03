@@ -58,6 +58,7 @@ dependencies:
   cached_network_image: ^3.4.1
   flutter_screenutil: ^5.9.3
   google_fonts: ^6.3.3
+  purchases_flutter: ^9.10.3
 
 
 dev_dependencies:
