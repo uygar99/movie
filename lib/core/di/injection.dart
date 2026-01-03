@@ -39,6 +39,6 @@ Future<void> setupDependencyInjection() async {
   getIt.registerFactory(() => MovieStore(getIt()));
   getIt.registerLazySingleton(() => OnboardingStore(getIt(), getIt()));
   getIt.registerFactory(() => HomeStore(getIt(), getIt(), getIt()));
-  getIt.registerFactory(() => PaywallStore());
+  getIt.registerLazySingleton(() => PaywallStore());
 }
 

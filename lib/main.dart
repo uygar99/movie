@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'core/di/injection.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/pages/onboarding_movies_page.dart';
+import 'presentation/stores/paywall_store.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,9 @@ void main() async {
   
   // Setup dependency injection
   await setupDependencyInjection();
+  
+  // Initialize RevenueCat
+  await getIt<PaywallStore>().init();
   
   runApp(const MyApp());
 }

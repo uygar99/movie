@@ -10,7 +10,7 @@ import '../../domain/entities/movie.dart';
 import '../../domain/entities/genre.dart';
 import '../stores/home_store.dart';
 import '../stores/onboarding_store.dart';
-import 'paywall_page.dart';
+import '../stores/paywall_store.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,6 +21,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final HomeStore _homeStore;
+  late final PaywallStore _paywallStore;
   final ScrollController _mainScrollController = ScrollController();
   final Map<int, GlobalKey> _genreKeys = {};
 
@@ -28,8 +29,8 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _homeStore = getIt<HomeStore>();
+    _paywallStore = getIt<PaywallStore>();
     
-    // PERSISTENCE FIX: Getting existing selections from the lazy singleton
     final onboardingStore = getIt<OnboardingStore>();
     _homeStore.init(
       onboardingStore.selectedGenreIds.toList(),
@@ -78,19 +79,33 @@ class _HomePageState extends State<HomePage> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallPage())),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                        decoration: BoxDecoration(
-                          color: AppTheme.redLight,
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                        child: Text(
-                          'GO PRO',
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.w800),
-                        ),
-                      ),
+                    Observer(
+                      builder: (_) {
+                        return GestureDetector(
+                          onTap: () {
+                            if (_paywallStore.isPremium) {
+                              _paywallStore.presentCustomerCenter();
+                            } else {
+                              _paywallStore.presentPaywall();
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                            decoration: BoxDecoration(
+                              color: _paywallStore.isPremium ? Colors.amber : AppTheme.redLight,
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            child: Text(
+                              _paywallStore.isPremium ? 'MY PRO' : 'GO PRO',
+                              style: GoogleFonts.inter(
+                                color: _paywallStore.isPremium ? Colors.black : Colors.white, 
+                                fontSize: 12.sp, 
+                                fontWeight: FontWeight.w800
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -233,7 +248,7 @@ class _HomePageState extends State<HomePage> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-            // 4. CATEGORIES LIST WITH INDIVIDUAL OBSERVERS
+            // 4. CATEGORIES LIST
             Observer(
               builder: (_) {
                 if (_homeStore.isLoadingGenres && _homeStore.genres.isEmpty) {
@@ -248,7 +263,6 @@ class _HomePageState extends State<HomePage> {
                       final genre = _homeStore.genres[index];
                       _genreKeys[genre.id] ??= GlobalKey();
 
-                      // CRITICAL FIX: Wrap each category row in an Observer so it rebuilds when its specific movies finish loading
                       return Observer(
                         builder: (_) {
                           final categoryMovies = _homeStore.moviesByGenre[genre.id] ?? [];
