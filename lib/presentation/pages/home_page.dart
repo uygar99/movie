@@ -68,46 +68,13 @@ class _HomePageState extends State<HomePage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 10.h),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'For You ⭐',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.white,
-                        fontSize: 24.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Observer(
-                      builder: (_) {
-                        return GestureDetector(
-                          onTap: () {
-                            if (_paywallStore.isPremium) {
-                              _paywallStore.presentCustomerCenter();
-                            } else {
-                              _paywallStore.presentPaywall();
-                            }
-                          },
-                          child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                            decoration: BoxDecoration(
-                              color: _paywallStore.isPremium ? Colors.amber : AppTheme.redLight,
-                              borderRadius: BorderRadius.circular(10.r),
-                            ),
-                            child: Text(
-                              _paywallStore.isPremium ? 'MY PRO' : 'GO PRO',
-                              style: GoogleFonts.inter(
-                                color: _paywallStore.isPremium ? Colors.black : Colors.white, 
-                                fontSize: 12.sp, 
-                                fontWeight: FontWeight.w800
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                child: Text(
+                  'For You ⭐',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.white,
+                    fontSize: 24.sp,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

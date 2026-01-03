@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/di/injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../stores/onboarding_store.dart';
+import '../stores/paywall_store.dart';
 import 'home_page.dart';
 
 class OnboardingGenresPage extends StatefulWidget {
@@ -16,17 +18,27 @@ class OnboardingGenresPage extends StatefulWidget {
 }
 
 class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
+  late final PaywallStore _paywallStore;
+
   @override
   void initState() {
     super.initState();
+    _paywallStore = getIt<PaywallStore>();
     widget.store.loadGenres();
   }
 
-  void _onContinue() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePage()),
-      (route) => false,
-    );
+  Future<void> _onContinue() async {
+    // Automatically show paywall if user is not premium
+    if (!_paywallStore.isPremium) {
+      await _paywallStore.presentPaywall();
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+        (route) => false,
+      );
+    }
   }
 
   @override
