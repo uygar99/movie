@@ -63,6 +63,78 @@ mixin _$PaywallStore on _PaywallStore, Store {
     });
   }
 
+  late final _$currentOfferingAtom = Atom(
+    name: '_PaywallStore.currentOffering',
+    context: context,
+  );
+
+  @override
+  Offering? get currentOffering {
+    _$currentOfferingAtom.reportRead();
+    return super.currentOffering;
+  }
+
+  @override
+  set currentOffering(Offering? value) {
+    _$currentOfferingAtom.reportWrite(value, super.currentOffering, () {
+      super.currentOffering = value;
+    });
+  }
+
+  late final _$packagesAtom = Atom(
+    name: '_PaywallStore.packages',
+    context: context,
+  );
+
+  @override
+  ObservableList<Package> get packages {
+    _$packagesAtom.reportRead();
+    return super.packages;
+  }
+
+  @override
+  set packages(ObservableList<Package> value) {
+    _$packagesAtom.reportWrite(value, super.packages, () {
+      super.packages = value;
+    });
+  }
+
+  late final _$selectedPackageAtom = Atom(
+    name: '_PaywallStore.selectedPackage',
+    context: context,
+  );
+
+  @override
+  Package? get selectedPackage {
+    _$selectedPackageAtom.reportRead();
+    return super.selectedPackage;
+  }
+
+  @override
+  set selectedPackage(Package? value) {
+    _$selectedPackageAtom.reportWrite(value, super.selectedPackage, () {
+      super.selectedPackage = value;
+    });
+  }
+
+  late final _$freeTrialEnabledAtom = Atom(
+    name: '_PaywallStore.freeTrialEnabled',
+    context: context,
+  );
+
+  @override
+  bool get freeTrialEnabled {
+    _$freeTrialEnabledAtom.reportRead();
+    return super.freeTrialEnabled;
+  }
+
+  @override
+  set freeTrialEnabled(bool value) {
+    _$freeTrialEnabledAtom.reportWrite(value, super.freeTrialEnabled, () {
+      super.freeTrialEnabled = value;
+    });
+  }
+
   late final _$errorAtom = Atom(name: '_PaywallStore.error', context: context);
 
   @override
@@ -88,14 +160,24 @@ mixin _$PaywallStore on _PaywallStore, Store {
     return _$initAsyncAction.run(() => super.init());
   }
 
-  late final _$presentPaywallAsyncAction = AsyncAction(
-    '_PaywallStore.presentPaywall',
+  late final _$purchaseAsyncAction = AsyncAction(
+    '_PaywallStore.purchase',
     context: context,
   );
 
   @override
-  Future<void> presentPaywall() {
-    return _$presentPaywallAsyncAction.run(() => super.presentPaywall());
+  Future<bool> purchase() {
+    return _$purchaseAsyncAction.run(() => super.purchase());
+  }
+
+  late final _$restorePurchasesAsyncAction = AsyncAction(
+    '_PaywallStore.restorePurchases',
+    context: context,
+  );
+
+  @override
+  Future<void> restorePurchases() {
+    return _$restorePurchasesAsyncAction.run(() => super.restorePurchases());
   }
 
   late final _$presentCustomerCenterAsyncAction = AsyncAction(
@@ -110,14 +192,33 @@ mixin _$PaywallStore on _PaywallStore, Store {
     );
   }
 
-  late final _$restorePurchasesAsyncAction = AsyncAction(
-    '_PaywallStore.restorePurchases',
+  late final _$_PaywallStoreActionController = ActionController(
+    name: '_PaywallStore',
     context: context,
   );
 
   @override
-  Future<void> restorePurchases() {
-    return _$restorePurchasesAsyncAction.run(() => super.restorePurchases());
+  void setSelectedPackage(Package package) {
+    final _$actionInfo = _$_PaywallStoreActionController.startAction(
+      name: '_PaywallStore.setSelectedPackage',
+    );
+    try {
+      return super.setSelectedPackage(package);
+    } finally {
+      _$_PaywallStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
+  void toggleFreeTrial(bool value) {
+    final _$actionInfo = _$_PaywallStoreActionController.startAction(
+      name: '_PaywallStore.toggleFreeTrial',
+    );
+    try {
+      return super.toggleFreeTrial(value);
+    } finally {
+      _$_PaywallStoreActionController.endAction(_$actionInfo);
+    }
   }
 
   @override
@@ -126,6 +227,10 @@ mixin _$PaywallStore on _PaywallStore, Store {
 isLoading: ${isLoading},
 isPremium: ${isPremium},
 customerInfo: ${customerInfo},
+currentOffering: ${currentOffering},
+packages: ${packages},
+selectedPackage: ${selectedPackage},
+freeTrialEnabled: ${freeTrialEnabled},
 error: ${error}
     ''';
   }

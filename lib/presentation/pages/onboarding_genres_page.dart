@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:movie/presentation/pages/paywall_page.dart';
 import '../../core/di/injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../stores/onboarding_store.dart';
@@ -28,9 +29,13 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
   }
 
   Future<void> _onContinue() async {
-    // Automatically show paywall if user is not premium
+    // Automatically show custom paywall if user is not premium
     if (!_paywallStore.isPremium) {
-      await _paywallStore.presentPaywall();
+      if (mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PaywallPage()),
+        );
+      }
     }
 
     if (mounted) {

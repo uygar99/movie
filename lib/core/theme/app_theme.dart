@@ -9,6 +9,7 @@ class AppTheme {
   static const Color grayDark = Color(0xFF968D8D);
   static const Color redDark = Color(0xFF8C2626);
   static const Color redLight = Color(0xFFCB2C2C);
+  static const Color successGreen = Color(0xFF00FF85);
   
   // Selection Colors
   static const Color selectionInsetRed = Color(0x4DCB2C2C); // #CB2C2C4D 

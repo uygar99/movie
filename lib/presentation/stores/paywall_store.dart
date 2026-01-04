@@ -21,29 +21,57 @@ abstract class _PaywallStore with Store {
   CustomerInfo? customerInfo;
 
   @observable
+  Offering? currentOffering;
+
+  @observable
+  ObservableList<Package> packages = ObservableList<Package>();
+
+  @observable
+  Package? selectedPackage;
+
+  @observable
+  bool freeTrialEnabled = false;
+
+  @observable
   String? error;
 
   @action
   Future<void> init() async {
+    print('PaywallStore: Initializing RevenueCat...');
     isLoading = true;
     try {
-      // Configure RevenueCat
       final isConfigured = await Purchases.isConfigured;
       if (!isConfigured) {
         await Purchases.configure(PurchasesConfiguration(_apiKey));
       }
 
-      // Check current customer info/entitlements
+      // Check current customer info
       customerInfo = await Purchases.getCustomerInfo();
       isPremium = customerInfo?.entitlements.active.containsKey(_entitlementId) ?? false;
       
-      // Listen for database changes (automatic sync)
+      // Fetch Offerings for custom UI
+      final offerings = await Purchases.getOfferings();
+      if (offerings.current != null) {
+        currentOffering = offerings.current;
+        packages.clear();
+        packages.addAll(offerings.current!.availablePackages);
+        
+        // Default selection: Monthly
+        if (packages.isNotEmpty) {
+          selectedPackage = packages.firstWhere(
+            (p) => p.packageType == PackageType.monthly,
+            orElse: () => packages.first,
+          );
+        }
+      }
+
       Purchases.addCustomerInfoUpdateListener((info) {
         customerInfo = info;
         isPremium = info.entitlements.active.containsKey(_entitlementId);
       });
 
     } catch (e) {
+      print('PaywallStore: Error during init: $e');
       error = e.toString();
     } finally {
       isLoading = false;
@@ -51,23 +79,29 @@ abstract class _PaywallStore with Store {
   }
 
   @action
-  Future<void> presentPaywall() async {
-    try {
-      // Use RevenueCat's modern Paywall UI
-      final result = await RevenueCatUI.presentPaywall();
-      // Result can be used if needed, but the listener above will handle state updates
-    } catch (e) {
-      error = e.toString();
-    }
+  void setSelectedPackage(Package package) {
+    selectedPackage = package;
   }
 
   @action
-  Future<void> presentCustomerCenter() async {
+  void toggleFreeTrial(bool value) {
+    freeTrialEnabled = value;
+  }
+
+  @action
+  Future<bool> purchase() async {
+    if (selectedPackage == null) return false;
+    
+    isLoading = true;
     try {
-      // Use RevenueCat's Customer Center for management
-      await RevenueCatUI.presentCustomerCenter();
+      final updatedCustomerInfo = await Purchases.purchasePackage(selectedPackage!);
+      isPremium = updatedCustomerInfo.customerInfo.entitlements.active.containsKey(_entitlementId);
+      return isPremium;
     } catch (e) {
       error = e.toString();
+      return false;
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -81,6 +115,15 @@ abstract class _PaywallStore with Store {
       error = e.toString();
     } finally {
       isLoading = false;
+    }
+  }
+
+  @action
+  Future<void> presentCustomerCenter() async {
+    try {
+      await RevenueCatUI.presentCustomerCenter();
+    } catch (e) {
+      error = e.toString();
     }
   }
 }
