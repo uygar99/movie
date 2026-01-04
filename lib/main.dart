@@ -3,8 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'core/di/injection.dart';
 import 'core/theme/app_theme.dart';
-import 'presentation/pages/onboarding_movies_page.dart';
-import 'presentation/stores/paywall_store.dart';
+import 'presentation/pages/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,9 +13,6 @@ void main() async {
   
   // Setup dependency injection
   await setupDependencyInjection();
-  
-  // Initialize RevenueCat
-  await getIt<PaywallStore>().init();
   
   runApp(const MyApp());
 }
@@ -32,10 +28,10 @@ class MyApp extends StatelessWidget {
       splitScreenMode: true,
       builder: (context, child) {
         return MaterialApp(
-          title: 'Movie App',
+          title: 'Movies',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.darkTheme,
-          home: const OnboardingMoviesPage(),
+          home: const SplashPage(),
         );
       },
     );

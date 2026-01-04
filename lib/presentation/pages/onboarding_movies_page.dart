@@ -26,7 +26,7 @@ class _OnboardingMoviesPageState extends State<OnboardingMoviesPage> {
   void initState() {
     super.initState();
     _store = getIt<OnboardingStore>();
-    _store.loadMovies();
+    
     
     _pageController = PageController(
       viewportFraction: 0.52, 

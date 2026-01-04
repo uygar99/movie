@@ -25,7 +25,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
   void initState() {
     super.initState();
     _paywallStore = getIt<PaywallStore>();
-    widget.store.loadGenres();
   }
 
   Future<void> _onContinue() async {

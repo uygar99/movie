@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -168,23 +169,32 @@ class _HomePageState extends State<HomePage> {
           child: CustomScrollView(
             controller: _mainScrollController,
             slivers: [
-              _buildSectionHeader('For You ⭐'),
-              _buildRecommendations(),
-              const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
-              _buildSectionHeader('Movies 🎬'),
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            _buildSectionHeader('For You ⭐'),
+            _buildRecommendations(),
+            const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
+            _buildMoviesHeader(),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _GenreNavDelegate(
-                  homeStore: _homeStore,
-                  chipScrollController: _chipScrollController,
-                  chipWidth: _chipWidth,
-                  onTap: _onChipTap,
-                ),
-              ),
+            // Sticky Navigation Bar
+            Observer(
+              builder: (_) {
+                // Hide sticky header when searching
+                if (_homeStore.searchQuery.isNotEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+                
+                return SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _GenreNavDelegate(
+                    homeStore: _homeStore,
+                    chipScrollController: _chipScrollController,
+                    chipWidth: _chipWidth,
+                    onTap: _onChipTap,
+                  ),
+                );
+              },
+            ),
 
-              _buildCategoryList(),
+            // Main Category List
+            _buildCategoryList(),
               
               SliverToBoxAdapter(child: SizedBox(height: 100.h)),
             ],
@@ -200,6 +210,52 @@ class _HomePageState extends State<HomePage> {
         padding: EdgeInsets.fromLTRB(20.w, 15.h, 20.w, 10.h),
         child: Text(title,
           style: GoogleFonts.inter(color: AppTheme.white, fontSize: 24.sp, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _buildMoviesHeader() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Movies 🎬',
+              style: GoogleFonts.inter(color: AppTheme.white, fontSize: 24.sp, fontWeight: FontWeight.w700)),
+            SizedBox(height: 16.h),
+            // Updated Search Bar Design (Screenshot Match)
+            Container(
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2EBEB), // Light pinkish-gray from screenshot
+                borderRadius: BorderRadius.circular(24.r), // Capsule shape
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.search, color: const Color(0xFF9E9E9E), size: 24.w),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: TextField(
+                      onChanged: _homeStore.setSearchQuery,
+                      style: GoogleFonts.inter(color: Colors.black87, fontSize: 16.sp, fontWeight: FontWeight.w500),
+                      cursorColor: Colors.black54,
+                      decoration: InputDecoration(
+                        hintText: 'Search',
+                        hintStyle: GoogleFonts.inter(color: const Color(0xFF9E9E9E), fontSize: 17.sp, fontWeight: FontWeight.w500),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isCollapsed: true,
+                      ),
+                    ),
+                  ),
+                  Icon(CupertinoIcons.mic_fill, color: const Color(0xFF9E9E9E), size: 24.w),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -252,20 +308,36 @@ class _HomePageState extends State<HomePage> {
               final genre = _homeStore.genres[index];
               _genreKeys[genre.id] ??= GlobalKey();
 
-              return Column(
-                key: _genreKeys[genre.id],
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(20.w, 30.h, 20.w, 15.h),
-                    child: Text(genre.name,
-                      style: GoogleFonts.inter(color: AppTheme.white, fontSize: 20.sp, fontWeight: FontWeight.w700)),
-                  ),
-                  _MovieGrid(
-                    movies: _homeStore.moviesByGenre[genre.id] ?? [],
-                    onImage: _getImageUrl,
-                  ),
-                ],
+              return Observer(
+                builder: (_) {
+                  var movies = _homeStore.moviesByGenre[genre.id] ?? [];
+                  
+                  // Filter movies based on search query
+                  if (_homeStore.searchQuery.isNotEmpty) {
+                    movies = movies.where((m) => m.title.toLowerCase().contains(_homeStore.searchQuery.toLowerCase())).toList();
+                  }
+
+                  // Hide category if no movies match
+                  if (movies.isEmpty && _homeStore.searchQuery.isNotEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Column(
+                    key: _genreKeys[genre.id],
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(20.w, 30.h, 20.w, 15.h),
+                        child: Text(genre.name,
+                          style: GoogleFonts.inter(color: AppTheme.white, fontSize: 20.sp, fontWeight: FontWeight.w700)),
+                      ),
+                      _MovieGrid(
+                        movies: movies,
+                        onImage: _getImageUrl,
+                      ),
+                    ],
+                  );
+                },
               );
             }),
           ),
