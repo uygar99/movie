@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'core/di/injection.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/pages/splash_page.dart';
@@ -8,10 +10,15 @@ import 'presentation/pages/splash_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Load environment variables
+  // 1. Load environment variables
   await dotenv.load(fileName: '.env');
   
-  // Setup dependency injection
+  // 2. Initialize Firebase with explicit options
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  // 3. Setup dependency injection
   await setupDependencyInjection();
   
   runApp(const MyApp());

@@ -92,15 +92,6 @@ class _SplashPageState extends State<SplashPage> {
               ),
             ),
             SizedBox(height: 60.h),
-            // Optional: sleek loader
-            SizedBox(
-              width: 24.w,
-              height: 24.w,
-              child: const CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.redLight),
-              ),
-            ),
           ],
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:movie/presentation/pages/paywall_page.dart';
+import 'package:movie/presentation/pages/paywall_page_v2.dart';
 import '../../core/di/injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../stores/onboarding_store.dart';
@@ -32,7 +33,11 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
     if (!_paywallStore.isPremium) {
       if (mounted) {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const PaywallPage()),
+          MaterialPageRoute(
+            builder: (_) => _paywallStore.paywallVersion == 2 
+              ? const PaywallPageV2() 
+              : const PaywallPage(),
+          ),
         );
       }
     }

@@ -1,6 +1,9 @@
 import 'package:mobx/mobx.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' hide Store;
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 
 part 'paywall_store.g.dart';
@@ -8,8 +11,8 @@ part 'paywall_store.g.dart';
 class PaywallStore = _PaywallStore with _$PaywallStore;
 
 abstract class _PaywallStore with Store {
-  static const String _apiKey = 'test_tZmEqBYtEZNRZFjAKgwmVRBxhNi';
-  static const String _entitlementId = 'Movies Pro';
+  String get _apiKey => dotenv.env['REVENUECAT_API_KEY'] ?? 'test_tZmEqBYtEZNRZFjAKgwmVRBxhNi';
+  String get _entitlementId => dotenv.env['REVENUECAT_ENTITLEMENT_ID'] ?? 'Movies Pro';
 
   @observable
   bool isLoading = false;
@@ -35,11 +38,15 @@ abstract class _PaywallStore with Store {
   @observable
   String? error;
 
+  @observable
+  int paywallVersion = 1; // 1 for Original, 2 for the new Full-Image version
+
   @action
   Future<void> init() async {
-    print('PaywallStore: Initializing RevenueCat...');
+    print('PaywallStore: Initializing...');
     isLoading = true;
     try {
+      // 1. Initialize RevenueCat
       final isConfigured = await Purchases.isConfigured;
       if (!isConfigured) {
         await Purchases.configure(PurchasesConfiguration(_apiKey));
@@ -70,11 +77,47 @@ abstract class _PaywallStore with Store {
         isPremium = info.entitlements.active.containsKey(_entitlementId);
       });
 
+      // 2. Remote Config Logic
+      await _fetchRemoteConfig();
+
     } catch (e) {
       print('PaywallStore: Error during init: $e');
       error = e.toString();
     } finally {
       isLoading = false;
+    }
+  }
+
+  @action
+  Future<void> _fetchRemoteConfig() async {
+    try {
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      
+      // Configure settings (fetch timeout and minimum fetch interval)
+      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: const Duration(hours: 1), // Check every hour in prod, or less for testing
+      ));
+
+      // Set default values
+      await remoteConfig.setDefaults({
+        "paywall_version": 1, // Default to the new one
+      });
+
+      // Fetch and activate
+      await remoteConfig.fetchAndActivate();
+      
+      // Update observable
+      paywallVersion = remoteConfig.getInt("paywall_version");
+      print('PaywallStore: Remote Config paywallVersion = $paywallVersion');
+
+      // Log paywall view
+      FirebaseAnalytics.instance.logEvent(
+        name: 'paywall_view',
+        parameters: {'version': paywallVersion},
+      );
+    } catch (e) {
+      print('PaywallStore: Failed to fetch remote config: $e');
     }
   }
 
@@ -96,6 +139,19 @@ abstract class _PaywallStore with Store {
     try {
       final updatedCustomerInfo = await Purchases.purchasePackage(selectedPackage!);
       isPremium = updatedCustomerInfo.customerInfo.entitlements.active.containsKey(_entitlementId);
+      
+      if (isPremium) {
+        FirebaseAnalytics.instance.logPurchase(
+          currency: selectedPackage!.storeProduct.currencyCode,
+          value: selectedPackage!.storeProduct.price,
+          items: [
+            AnalyticsEventItem(
+              itemName: selectedPackage!.identifier,
+              itemCategory: 'subscription',
+            )
+          ],
+        );
+      }
       return isPremium;
     } catch (e) {
       error = e.toString();

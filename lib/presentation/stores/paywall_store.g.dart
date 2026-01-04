@@ -150,6 +150,24 @@ mixin _$PaywallStore on _PaywallStore, Store {
     });
   }
 
+  late final _$paywallVersionAtom = Atom(
+    name: '_PaywallStore.paywallVersion',
+    context: context,
+  );
+
+  @override
+  int get paywallVersion {
+    _$paywallVersionAtom.reportRead();
+    return super.paywallVersion;
+  }
+
+  @override
+  set paywallVersion(int value) {
+    _$paywallVersionAtom.reportWrite(value, super.paywallVersion, () {
+      super.paywallVersion = value;
+    });
+  }
+
   late final _$initAsyncAction = AsyncAction(
     '_PaywallStore.init',
     context: context,
@@ -158,6 +176,18 @@ mixin _$PaywallStore on _PaywallStore, Store {
   @override
   Future<void> init() {
     return _$initAsyncAction.run(() => super.init());
+  }
+
+  late final _$_fetchRemoteConfigAsyncAction = AsyncAction(
+    '_PaywallStore._fetchRemoteConfig',
+    context: context,
+  );
+
+  @override
+  Future<void> _fetchRemoteConfig() {
+    return _$_fetchRemoteConfigAsyncAction.run(
+      () => super._fetchRemoteConfig(),
+    );
   }
 
   late final _$purchaseAsyncAction = AsyncAction(
@@ -231,7 +261,8 @@ currentOffering: ${currentOffering},
 packages: ${packages},
 selectedPackage: ${selectedPackage},
 freeTrialEnabled: ${freeTrialEnabled},
-error: ${error}
+error: ${error},
+paywallVersion: ${paywallVersion}
     ''';
   }
 }
