@@ -96,7 +96,7 @@ abstract class _PaywallStore with Store {
       // Configure settings (fetch timeout and minimum fetch interval)
       await remoteConfig.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 10),
-        minimumFetchInterval: const Duration(hours: 1), // Check every hour in prod, or less for testing
+        minimumFetchInterval: Duration.zero, // Set to zero for testing to see changes immediately
       ));
 
       // Set default values
