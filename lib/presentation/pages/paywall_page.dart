@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -16,11 +17,31 @@ class PaywallPage extends StatefulWidget {
 
 class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin {
   late final PaywallStore _store;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _store = getIt<PaywallStore>();
+    
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Listen to store changes to start/stop pulse
+    _pulseController.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
   }
 
   @override
@@ -34,23 +55,23 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
               children: [
                 SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
+                  padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
                   child: Column(
                     children: [
                       _buildHeader(),
-                      SizedBox(height: 30.h),
+                      SizedBox(height: 20.h),
                       _buildComparisonTable(),
-                      SizedBox(height: 30.h),
+                      SizedBox(height: 20.h),
                       _buildTrialToggle(),
-                      SizedBox(height: 24.h),
+                      SizedBox(height: 20.h),
                       _buildSubscriptionOptions(),
-                      SizedBox(height: 20.h),
+                      SizedBox(height: 16.h),
                       _buildAutoRenewInfo(),
-                      SizedBox(height: 20.h),
+                      SizedBox(height: 16.h),
                       _buildPurchaseButton(),
-                      SizedBox(height: 24.h),
-                      _buildBottomLinks(),
                       SizedBox(height: 20.h),
+                      _buildBottomLinks(),
+                      SizedBox(height: 10.h),
                     ],
                   ),
                 ),
@@ -68,93 +89,96 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
   }
 
   Widget _buildHeader() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Text(
-          'AppName',
-          style: GoogleFonts.inter(
-            color: AppTheme.white,
-            fontSize: 28.sp,
-            fontWeight: FontWeight.w800,
+    return SizedBox(
+      width: double.infinity,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            'Movie',
+            style: GoogleFonts.inter(
+              color: AppTheme.white,
+              fontSize: 28.sp,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        Positioned(
-          right: 0,
-          child: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Icon(Icons.close, color: AppTheme.white, size: 24.w),
+          Positioned(
+            right: 0,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Padding(
+                padding: EdgeInsets.all(8.w), // Better touch target
+                child: Icon(Icons.close, color: AppTheme.white, size: 24.w),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildComparisonTable() {
     int proTickCount = 0;
-    final pkgType = _store.selectedPackage?.packageType;
-    if (pkgType == PackageType.weekly) {
-      proTickCount = 2;
-    } else if (pkgType == PackageType.monthly) {
-      proTickCount = 3;
-    } else if (pkgType == PackageType.annual) {
+    
+    if (_store.freeTrialEnabled) {
       proTickCount = 4;
     } else {
-      proTickCount = 3; // Default or preview
+      final pkgType = _store.selectedPackage?.packageType;
+      if (pkgType == PackageType.weekly) {
+        proTickCount = 2;
+      } else if (pkgType == PackageType.monthly) {
+        proTickCount = 3;
+      } else if (pkgType == PackageType.annual) {
+        proTickCount = 4;
+      } else {
+        proTickCount = 3; 
+      }
     }
 
-    return Column(
+    return Stack(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        Column(
           children: [
-            SizedBox(
-              width: 50.w,
-              child: Text('FREE', 
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: AppTheme.white, fontSize: 13.sp, fontWeight: FontWeight.w700)),
-            ),
-            SizedBox(width: 20.w),
-            Container(
-              width: 60.w,
-              padding: EdgeInsets.symmetric(vertical: 2.h),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.redLight, width: 1.5),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(4.r),
-                  topRight: Radius.circular(4.r),
-                ),
-              ),
-              child: Center(
-                child: Text('PRO',
-                  style: GoogleFonts.inter(color: AppTheme.white, fontSize: 13.sp, fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ],
-        ),
-        Stack(
-          children: [
-            Column(
+            // Header Row inside Stack
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _buildComparisonRow('Daily Movie Suggestions', true, proTickCount >= 1),
-                _buildComparisonRow('AI-Powered Movie Insights', false, proTickCount >= 2),
-                _buildComparisonRow('Personalized Watchlists', false, proTickCount >= 3),
-                _buildComparisonRow('Ad-Free Experience', false, proTickCount >= 4),
+                SizedBox(
+                  width: 50.w,
+                  child: Text('FREE', 
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(color: AppTheme.white, fontSize: 13.sp, fontWeight: FontWeight.w700)),
+                ),
+                SizedBox(width: 20.w),
+                SizedBox(
+                  width: 60.w,
+                  height: 24.h, // Fixed height for header alignment
+                  child: Center(
+                    child: Text('PRO',
+                      style: GoogleFonts.inter(color: AppTheme.white, fontSize: 13.sp, fontWeight: FontWeight.w700)),
+                  ),
+                ),
               ],
             ),
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 60.w,
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.redLight, width: 1.5),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-            ),
+            SizedBox(height: 10.h),
+            _buildComparisonRow('Daily Movie Suggestions', true, proTickCount >= 1),
+            _buildComparisonRow('AI-Powered Movie Insights', false, proTickCount >= 2),
+            _buildComparisonRow('Personalized Watchlists', false, proTickCount >= 3),
+            _buildComparisonRow('Ad-Free Experience', false, proTickCount >= 4),
           ],
+        ),
+        // Continuous Red border around the PRO column
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            width: 60.w,
+            decoration: BoxDecoration(
+              border: Border.all(color: AppTheme.redLight, width: 1.5),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+          ),
         ),
       ],
     );
@@ -162,21 +186,21 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
 
   Widget _buildComparisonRow(String feature, bool free, bool pro) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 14.h),
+      padding: EdgeInsets.symmetric(vertical: 10.h),
       child: Row(
         children: [
           Expanded(
             child: Text(feature, 
-              style: GoogleFonts.inter(color: AppTheme.white, fontSize: 15.sp, fontWeight: FontWeight.w600)),
+              style: GoogleFonts.inter(color: AppTheme.white, fontSize: 14.sp, fontWeight: FontWeight.w600)),
           ),
           SizedBox(
             width: 50.w,
-            child: Center(child: _AnimatedIcon(isActive: free, isSuccess: free)),
+            child: Center(child: _AnimatedIcon(isActive: true, isSuccess: free)),
           ),
           SizedBox(width: 20.w),
           SizedBox(
             width: 60.w,
-            child: Center(child: _AnimatedIcon(isActive: pro, isSuccess: pro)),
+            child: Center(child: _AnimatedIcon(isActive: true, isSuccess: pro)),
           ),
         ],
       ),
@@ -185,7 +209,7 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
 
   Widget _buildTrialToggle() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
       decoration: BoxDecoration(
         border: Border.all(color: AppTheme.redLight, width: 1.5),
         borderRadius: BorderRadius.circular(12.r),
@@ -198,12 +222,11 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
             'Enable Free Trial',
             style: GoogleFonts.inter(color: AppTheme.white, fontSize: 16.sp, fontWeight: FontWeight.w700),
           ),
-          Switch(
+          CupertinoSwitch(
             value: _store.freeTrialEnabled,
             onChanged: _store.toggleFreeTrial,
-            activeColor: AppTheme.white,
-            activeTrackColor: AppTheme.successGreen,
-            inactiveTrackColor: const Color(0xFF333333),
+            activeColor: AppTheme.successGreen,
+            trackColor: const Color(0xFF333333),
           ),
         ],
       ),
@@ -214,11 +237,11 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
     if (_store.packages.isEmpty) {
       return Column(
         children: [
-          _buildOptionItem(null, 'Weekly', 'Only \$4,99 per week', '\$4,99 / week', false, false),
-          SizedBox(height: 12.h),
-          _buildOptionItem(null, 'Monthly', 'Only \$2,99 per week', '\$11,99 / month', false, false),
-          SizedBox(height: 12.h),
-          _buildOptionItem(null, 'Yearly', 'Only \$0,96 per week', '\$49,99 / year', true, true),
+          _buildOptionItem(null, 'Weekly', 'Only \$4.99 per week', '\$4.99 / week', false, false),
+          SizedBox(height: 10.h),
+          _buildOptionItem(null, 'Monthly', 'Only \$2.99 per week', '\$11.99 / month', false, false),
+          SizedBox(height: 10.h),
+          _buildOptionItem(null, 'Yearly', 'Only \$0.96 per week', '\$49.99 / year', true, true),
         ],
       );
     }
@@ -228,18 +251,28 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
         final isSelected = _store.selectedPackage?.identifier == pkg.identifier;
         final isYearly = pkg.packageType == PackageType.annual;
         
+        String priceText = pkg.storeProduct.priceString;
+        String suffix = '';
         String subtitle = 'Subscription plan';
-        if (pkg.packageType == PackageType.weekly) subtitle = 'Only ${pkg.storeProduct.priceString} per week';
-        if (pkg.packageType == PackageType.monthly) subtitle = 'Only ${(pkg.storeProduct.price / 4).toStringAsFixed(2)} per week';
-        if (pkg.packageType == PackageType.annual) subtitle = 'Only ${(pkg.storeProduct.price / 52).toStringAsFixed(2)} per week';
+
+        if (pkg.packageType == PackageType.weekly) {
+          suffix = ' / week';
+          subtitle = 'Only \$${pkg.storeProduct.price.toStringAsFixed(2)} per week';
+        } else if (pkg.packageType == PackageType.monthly) {
+          suffix = ' / month';
+          subtitle = 'Only \$${(pkg.storeProduct.price / 4).toStringAsFixed(2)} per week';
+        } else if (pkg.packageType == PackageType.annual) {
+          suffix = ' / year';
+          subtitle = 'Only \$${(pkg.storeProduct.price / 52).toStringAsFixed(2)} per week';
+        }
 
         return Padding(
-          padding: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.only(bottom: 10.h),
           child: _buildOptionItem(
             pkg,
             pkg.packageType.name.capitalize(),
             subtitle,
-            pkg.storeProduct.priceString,
+            '${pkg.storeProduct.priceString}$suffix',
             isSelected,
             isYearly,
           ),
@@ -258,7 +291,7 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
             decoration: BoxDecoration(
               border: Border.all(color: isSelected ? AppTheme.redLight : const Color(0xFF333333), width: 1.5),
               borderRadius: BorderRadius.circular(16.r),
@@ -284,31 +317,31 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, 
-                        style: GoogleFonts.inter(color: AppTheme.white, fontSize: 17.sp, fontWeight: FontWeight.w700)),
+                        style: GoogleFonts.inter(color: AppTheme.white, fontSize: 16.sp, fontWeight: FontWeight.w700)),
                       Text(subtitle, 
-                        style: GoogleFonts.inter(color: AppTheme.grayDark, fontSize: 12.sp, fontWeight: FontWeight.w500)),
+                        style: GoogleFonts.inter(color: AppTheme.grayDark, fontSize: 11.sp, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
                 Text(price, 
-                  style: GoogleFonts.inter(color: AppTheme.white, fontSize: 17.sp, fontWeight: FontWeight.w700)),
+                  style: GoogleFonts.inter(color: AppTheme.white, fontSize: 16.sp, fontWeight: FontWeight.w700)),
               ],
             ),
           ),
           if (isBestValue)
             Positioned(
-              top: -10.h,
+              top: -8.h,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 3.h),
                   decoration: BoxDecoration(
                     color: AppTheme.redLight,
                     borderRadius: BorderRadius.circular(20.r),
                   ),
                   child: Text('Best Value', 
-                    style: GoogleFonts.inter(color: AppTheme.white, fontSize: 12.sp, fontWeight: FontWeight.w900)),
+                    style: GoogleFonts.inter(color: AppTheme.white, fontSize: 11.sp, fontWeight: FontWeight.w900)),
                 ),
               ),
             ),
@@ -332,37 +365,55 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
   }
 
   Widget _buildPurchaseButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 64.h,
-      child: ElevatedButton(
-        onPressed: () async {
-          final success = await _store.purchase();
-          if (success && mounted) {
-            Navigator.pop(context);
-          }
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.redLight,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-          elevation: 0,
-          padding: EdgeInsets.zero,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _store.freeTrialEnabled ? '3 Days Free' : 'Unlock MovieAI PRO',
-              style: GoogleFonts.inter(color: AppTheme.white, fontSize: 20.sp, fontWeight: FontWeight.w800),
+    return Observer(
+      builder: (_) {
+        Widget button = SizedBox(
+          width: double.infinity,
+          height: 60.h,
+          child: ElevatedButton(
+            onPressed: () async {
+              final success = await _store.purchase();
+              if (success && mounted) {
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.redLight,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+              elevation: 0,
+              padding: EdgeInsets.zero,
             ),
-            if (_store.freeTrialEnabled)
-              Text(
-                'No Payment Now',
-                style: GoogleFonts.inter(color: AppTheme.white.withOpacity(0.9), fontSize: 14.sp, fontWeight: FontWeight.w700),
-              ),
-          ],
-        ),
-      ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _store.freeTrialEnabled ? '3 Days Free' : 'Unlock Movie PRO',
+                  style: GoogleFonts.inter(color: AppTheme.white, fontSize: 18.sp, fontWeight: FontWeight.w800),
+                ),
+                if (_store.freeTrialEnabled)
+                  Text(
+                    'No Payment Now',
+                    style: GoogleFonts.inter(color: AppTheme.white.withOpacity(0.9), fontSize: 13.sp, fontWeight: FontWeight.w700),
+                  ),
+              ],
+            ),
+          ),
+        );
+
+        if (_store.freeTrialEnabled) {
+          return AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scaleX: _pulseAnimation.value,
+                child: child,
+              );
+            },
+            child: button,
+          );
+        }
+        return button;
+      },
     );
   }
 
@@ -382,7 +433,7 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
       onTap: onTap,
       child: Text(
         text,
-        style: GoogleFonts.inter(color: AppTheme.white.withOpacity(0.6), fontSize: 11.sp, fontWeight: FontWeight.w500),
+        style: GoogleFonts.inter(color: AppTheme.white.withOpacity(0.6), fontSize: 10.sp, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -440,7 +491,7 @@ class _AnimatedIconState extends State<_AnimatedIcon> with SingleTickerProviderS
       child: Icon(
         widget.isSuccess ? Icons.check_circle : Icons.cancel,
         color: widget.isSuccess ? AppTheme.successGreen : AppTheme.white,
-        size: 22.w,
+        size: 20.w,
       ),
     );
   }

@@ -36,7 +36,15 @@ abstract class _HomeStore with Store {
   int selectedGenreId = 0;
 
   @observable
+  bool isAutoScrolling = false;
+
+  @observable
   String searchQuery = '';
+
+  @action
+  void setAutoScrolling(bool value) {
+    isAutoScrolling = value;
+  }
 
   @action
   Future<void> init(List<int> selectedGenreIds, List<int> selectedMovieIds) async {

@@ -4,13 +4,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:mobx/mobx.dart';
 import '../../core/di/injection.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/entities/movie.dart';
 import '../../domain/entities/genre.dart';
 import '../stores/home_store.dart';
 import '../stores/onboarding_store.dart';
-import '../stores/paywall_store.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,33 +21,132 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final HomeStore _homeStore;
-  late final PaywallStore _paywallStore;
   final ScrollController _mainScrollController = ScrollController();
+  final ScrollController _chipScrollController = ScrollController();
   final Map<int, GlobalKey> _genreKeys = {};
+  
+  static final double _chipWidth = 110.w;
+  static const double _headerHeight = 60.0;
+
+  ReactionDisposer? _scrollReaction;
 
   @override
   void initState() {
     super.initState();
     _homeStore = getIt<HomeStore>();
-    _paywallStore = getIt<PaywallStore>();
     
     final onboardingStore = getIt<OnboardingStore>();
     _homeStore.init(
       onboardingStore.selectedGenreIds.toList(),
       onboardingStore.selectedMovieIds.toList(),
     );
+
+    // Sync horizontal chip list whenever selectedGenreId changes
+    _scrollReaction = reaction(
+      (_) => _homeStore.selectedGenreId,
+      (int id) => _centerSelectedChip(id),
+    );
   }
 
-  void _scrollToGenre(int genreId) {
+  @override
+  void dispose() {
+    _scrollReaction?.call();
+    _mainScrollController.dispose();
+    _chipScrollController.dispose();
+    super.dispose();
+  }
+
+  // Pure "Getir" Style Sync: Detected via Scroll Notifications for immediate state update
+  void _syncMainToChips() {
+    if (_homeStore.isAutoScrolling || _homeStore.genres.isEmpty) return;
+
+    final double topPadding = MediaQuery.of(context).padding.top;
+    final double stickyEdge = topPadding + _headerHeight + 10.h;
+
+    int? detectedId;
+
+    // Find the current genre section that encompasses the sticky edge
+    for (int i = 0; i < _homeStore.genres.length; i++) {
+      final genreId = _homeStore.genres[i].id;
+      final key = _genreKeys[genreId];
+      final ctx = key?.currentContext;
+      
+      if (ctx != null) {
+        final box = ctx.findRenderObject() as RenderBox;
+        final top = box.localToGlobal(Offset.zero).dy;
+        
+        // Get bottom by looking at the next genre's top
+        double? bottom;
+        if (i + 1 < _homeStore.genres.length) {
+          final nextKey = _genreKeys[_homeStore.genres[i + 1].id];
+          final nextCtx = nextKey?.currentContext;
+          if (nextCtx != null) {
+            bottom = (nextCtx.findRenderObject() as RenderBox).localToGlobal(Offset.zero).dy;
+          }
+        }
+
+        // If 'top' is above/at the edge AND 'bottom' is below the edge (or it's the last one)
+        if (top <= stickyEdge + 20) {
+          if (bottom == null || bottom > stickyEdge) {
+            detectedId = genreId;
+            break;
+          }
+        }
+      }
+    }
+
+    // Top area fallback
+    if (_mainScrollController.offset < 150.h) {
+      detectedId = _homeStore.genres.first.id;
+    }
+
+    if (detectedId != null && _homeStore.selectedGenreId != detectedId) {
+      // Immediate state update in MobX
+      _homeStore.setSelectedGenre(detectedId);
+    }
+  }
+
+  void _onChipTap(int genreId) async {
+    if (_homeStore.isAutoScrolling) return;
+
+    _homeStore.setAutoScrolling(true);
     _homeStore.setSelectedGenre(genreId);
+
     final key = _genreKeys[genreId];
-    if (key != null && key.currentContext != null) {
-      Scrollable.ensureVisible(
-        key.currentContext!,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+    final ctx = key?.currentContext;
+    if (ctx != null) {
+      final box = ctx.findRenderObject() as RenderBox;
+      final dy = box.localToGlobal(Offset.zero).dy;
+      final currentOffset = _mainScrollController.offset;
+      final double topPadding = MediaQuery.of(context).padding.top;
+      
+      double target = currentOffset + dy - (topPadding + _headerHeight.h) + 2.h;
+
+      await _mainScrollController.animateTo(
+        target.clamp(0.0, _mainScrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.fastOutSlowIn,
       );
     }
+
+    await Future.delayed(const Duration(milliseconds: 100));
+    _homeStore.setAutoScrolling(false);
+  }
+
+  void _centerSelectedChip(int genreId) {
+    if (!_chipScrollController.hasClients) return;
+    
+    final index = _homeStore.genres.indexWhere((g) => g.id == genreId);
+    if (index == -1) return;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final double centerOffset = (index * _chipWidth) - (screenWidth / 2) + (_chipWidth / 2) + 15.w;
+    
+    _chipScrollController.animateTo(
+      centerOffset.clamp(0.0, _chipScrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   String _getImageUrl(String? path) {
@@ -61,259 +160,236 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: AppTheme.black,
       body: SafeArea(
-        child: CustomScrollView(
-          controller: _mainScrollController,
-          slivers: [
-            // 1. FOR YOU SECTION
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20.w, 10.h, 20.w, 10.h),
-                child: Text(
-                  'For You ⭐',
-                  style: GoogleFonts.inter(
-                    color: AppTheme.white,
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            _syncMainToChips();
+            return false;
+          },
+          child: CustomScrollView(
+            controller: _mainScrollController,
+            slivers: [
+              _buildSectionHeader('For You ⭐'),
+              _buildRecommendations(),
+              const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
+              _buildSectionHeader('Movies 🎬'),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _GenreNavDelegate(
+                  homeStore: _homeStore,
+                  chipScrollController: _chipScrollController,
+                  chipWidth: _chipWidth,
+                  onTap: _onChipTap,
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 100.h,
-                child: Observer(
-                  builder: (_) {
-                    if (_homeStore.isLoadingRecommended && _homeStore.recommendedMovies.isEmpty) {
-                      return const Center(child: CircularProgressIndicator(color: AppTheme.redLight));
-                    }
-                    return ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 15.w),
-                      itemCount: _homeStore.recommendedMovies.length,
-                      itemBuilder: (context, index) {
-                        final movie = _homeStore.recommendedMovies[index];
-                        return Container(
-                          width: 80.w,
-                          margin: EdgeInsets.symmetric(horizontal: 5.w),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white10, width: 1),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: CachedNetworkImage(
-                            imageUrl: _getImageUrl(movie.posterPath),
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(color: Colors.white12),
-                            errorWidget: (_, __, ___) => const Center(child: Icon(Icons.movie, color: Colors.white24)),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
 
-            const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
-
-            // 2. MOVIES SECTION HEADER
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Movies 🎬',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.white,
-                        fontSize: 24.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 16.h),
-                    // Search Bar
-                    Container(
-                      height: 48.h,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search, color: AppTheme.grayDark, size: 20.w),
-                          SizedBox(width: 12.w),
-                          Expanded(
-                            child: TextField(
-                              onChanged: _homeStore.setSearchQuery,
-                              style: GoogleFonts.inter(color: AppTheme.white, fontSize: 16.sp),
-                              decoration: InputDecoration(
-                                hintText: 'Search',
-                                hintStyle: GoogleFonts.inter(color: AppTheme.grayDark, fontSize: 16.sp),
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Icon(Icons.mic, color: AppTheme.grayDark, size: 20.w),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 20.h),
-                  ],
-                ),
-              ),
-            ),
-
-            // 3. GENRE CHIPS
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 40.h,
-                child: Observer(
-                  builder: (_) {
-                    return ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      itemCount: _homeStore.genres.length,
-                      itemBuilder: (context, index) {
-                        final genre = _homeStore.genres[index];
-                        final isSelected = _homeStore.selectedGenreId == genre.id;
-                        return GestureDetector(
-                          onTap: () => _scrollToGenre(genre.id),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: EdgeInsets.only(right: 12.w),
-                            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-                            decoration: BoxDecoration(
-                              color: isSelected ? AppTheme.redLight : AppTheme.white,
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Row(
-                              children: [
-                                if (isSelected) ...[
-                                  Icon(Icons.check, color: AppTheme.white, size: 16.w),
-                                  SizedBox(width: 4.w),
-                                ],
-                                Text(
-                                  genre.name,
-                                  style: GoogleFonts.inter(
-                                    color: isSelected ? AppTheme.white : AppTheme.black,
-                                    fontSize: 14.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 10)),
-
-            // 4. CATEGORIES LIST
-            Observer(
-              builder: (_) {
-                if (_homeStore.isLoadingGenres && _homeStore.genres.isEmpty) {
-                  return const SliverToBoxAdapter(
-                    child: Center(child: CircularProgressIndicator(color: AppTheme.redLight)),
-                  );
-                }
-                
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final genre = _homeStore.genres[index];
-                      _genreKeys[genre.id] ??= GlobalKey();
-
-                      return Observer(
-                        builder: (_) {
-                          final categoryMovies = _homeStore.moviesByGenre[genre.id] ?? [];
-                          
-                          return Container(
-                            key: _genreKeys[genre.id],
-                            padding: EdgeInsets.symmetric(vertical: 20.h),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                                  child: Text(
-                                    genre.name,
-                                    style: GoogleFonts.inter(
-                                      color: AppTheme.white,
-                                      fontSize: 20.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 12.h),
-                                _GenreMoviesGrid(
-                                  movies: categoryMovies,
-                                  imageUrlGetter: _getImageUrl,
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    childCount: _homeStore.genres.length,
-                  ),
-                );
-              },
-            ),
-            
-            SliverToBoxAdapter(child: SizedBox(height: 80.h)),
-          ],
+              _buildCategoryList(),
+              
+              SliverToBoxAdapter(child: SizedBox(height: 100.h)),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildSectionHeader(String title) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20.w, 15.h, 20.w, 10.h),
+        child: Text(title,
+          style: GoogleFonts.inter(color: AppTheme.white, fontSize: 24.sp, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _buildRecommendations() {
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: 100.h,
+        child: Observer(
+          builder: (_) {
+            if (_homeStore.isLoadingRecommended && _homeStore.recommendedMovies.isEmpty) {
+              return const Center(child: CircularProgressIndicator(color: AppTheme.redLight));
+            }
+            return ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: 15.w),
+              itemCount: _homeStore.recommendedMovies.length,
+              itemBuilder: (context, index) {
+                final movie = _homeStore.recommendedMovies[index];
+                return Container(
+                  width: 80.w,
+                  margin: EdgeInsets.symmetric(horizontal: 5.w),
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white10)),
+                  clipBehavior: Clip.antiAlias,
+                  child: CachedNetworkImage(
+                    imageUrl: _getImageUrl(movie.posterPath),
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(color: Colors.white12),
+                    errorWidget: (_, __, ___) => const Center(child: Icon(Icons.movie, color: Colors.white24)),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryList() {
+    return Observer(
+      builder: (_) {
+        if (_homeStore.isLoadingGenres && _homeStore.genres.isEmpty) {
+          return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
+        }
+        
+        return SliverToBoxAdapter(
+          child: Column(
+            children: List.generate(_homeStore.genres.length, (index) {
+              final genre = _homeStore.genres[index];
+              _genreKeys[genre.id] ??= GlobalKey();
+
+              return Column(
+                key: _genreKeys[genre.id],
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20.w, 30.h, 20.w, 15.h),
+                    child: Text(genre.name,
+                      style: GoogleFonts.inter(color: AppTheme.white, fontSize: 20.sp, fontWeight: FontWeight.w700)),
+                  ),
+                  _MovieGrid(
+                    movies: _homeStore.moviesByGenre[genre.id] ?? [],
+                    onImage: _getImageUrl,
+                  ),
+                ],
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
 }
 
-class _GenreMoviesGrid extends StatelessWidget {
-  final List<Movie> movies;
-  final String Function(String?) imageUrlGetter;
+class _GenreNavDelegate extends SliverPersistentHeaderDelegate {
+  final HomeStore homeStore;
+  final ScrollController chipScrollController;
+  final double chipWidth;
+  final Function(int) onTap;
 
-  const _GenreMoviesGrid({required this.movies, required this.imageUrlGetter});
+  _GenreNavDelegate({
+    required this.homeStore,
+    required this.chipScrollController,
+    required this.chipWidth,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: AppTheme.black,
+      height: 60.h,
+      child: Observer(
+        builder: (_) {
+          // Explicitly reading this to ensure MobX tracking is solid
+          final selectedId = homeStore.selectedGenreId;
+          
+          return ListView.builder(
+            controller: chipScrollController,
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: 15.w, vertical: 10.h),
+            itemCount: homeStore.genres.length,
+            itemBuilder: (context, index) {
+              final genre = homeStore.genres[index];
+              final isSelected = selectedId == genre.id;
+              
+              return SizedBox(
+                width: chipWidth,
+                child: GestureDetector(
+                  onTap: () => onTap(genre.id),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: EdgeInsets.symmetric(horizontal: 4.w),
+                    padding: EdgeInsets.symmetric(vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppTheme.redLight : AppTheme.white,
+                      borderRadius: BorderRadius.circular(20.r),
+                      boxShadow: isSelected ? [BoxShadow(color: AppTheme.redLight.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (isSelected) ...[
+                          Icon(Icons.check, color: AppTheme.white, size: 14.w),
+                          SizedBox(width: 4.w),
+                        ],
+                        Flexible(
+                          child: Text(
+                            genre.name,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: isSelected ? AppTheme.white : AppTheme.black,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  double get maxExtent => 60.h;
+  @override
+  double get minExtent => 60.h;
+  @override
+  bool shouldRebuild(covariant _GenreNavDelegate oldDelegate) => true;
+}
+
+class _MovieGrid extends StatelessWidget {
+  final List<Movie> movies;
+  final String Function(String?) onImage;
+
+  const _MovieGrid({required this.movies, required this.onImage});
 
   @override
   Widget build(BuildContext context) {
     if (movies.isEmpty) {
-      return SizedBox(
-        height: 150.h,
-        child: const Center(child: CircularProgressIndicator(color: Colors.white10)),
-      );
+      return SizedBox(height: 150.h, child: const Center(child: CircularProgressIndicator(strokeWidth: 2)));
     }
-
     return GridView.builder(
+      padding: EdgeInsets.symmetric(horizontal: 15.w),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: 20.w),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         mainAxisSpacing: 10.h,
         crossAxisSpacing: 10.w,
         childAspectRatio: 0.7,
       ),
-      itemCount: movies.length, 
+      itemCount: movies.length,
       itemBuilder: (context, index) {
         final movie = movies[index];
         return ClipRRect(
           borderRadius: BorderRadius.circular(12.r),
-          child: Container(
-            color: Colors.white10,
-            child: CachedNetworkImage(
-              imageUrl: imageUrlGetter(movie.posterPath),
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: Colors.white12),
-              errorWidget: (_, __, ___) => const Icon(Icons.movie, color: Colors.white24),
-            ),
+          child: CachedNetworkImage(
+            imageUrl: onImage(movie.posterPath),
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(color: Colors.white12),
+            errorWidget: (_, __, ___) => const Icon(Icons.movie, color: Colors.white24),
           ),
         );
       },
