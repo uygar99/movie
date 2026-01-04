@@ -42,7 +42,6 @@ class _HomePageState extends State<HomePage> {
       onboardingStore.selectedMovieIds.toList(),
     );
 
-    // Sync horizontal chip list whenever selectedGenreId changes
     _scrollReaction = reaction(
       (_) => _homeStore.selectedGenreId,
       (int id) => _centerSelectedChip(id),
@@ -57,7 +56,6 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // Pure "Getir" Style Sync: Detected via Scroll Notifications for immediate state update
   void _syncMainToChips() {
     if (_homeStore.isAutoScrolling || _homeStore.genres.isEmpty) return;
 
@@ -66,7 +64,6 @@ class _HomePageState extends State<HomePage> {
 
     int? detectedId;
 
-    // Find the current genre section that encompasses the sticky edge
     for (int i = 0; i < _homeStore.genres.length; i++) {
       final genreId = _homeStore.genres[i].id;
       final key = _genreKeys[genreId];
@@ -76,7 +73,6 @@ class _HomePageState extends State<HomePage> {
         final box = ctx.findRenderObject() as RenderBox;
         final top = box.localToGlobal(Offset.zero).dy;
         
-        // Get bottom by looking at the next genre's top
         double? bottom;
         if (i + 1 < _homeStore.genres.length) {
           final nextKey = _genreKeys[_homeStore.genres[i + 1].id];
@@ -86,7 +82,6 @@ class _HomePageState extends State<HomePage> {
           }
         }
 
-        // If 'top' is above/at the edge AND 'bottom' is below the edge (or it's the last one)
         if (top <= stickyEdge + 20) {
           if (bottom == null || bottom > stickyEdge) {
             detectedId = genreId;
@@ -96,13 +91,11 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    // Top area fallback
     if (_mainScrollController.offset < 150.h) {
       detectedId = _homeStore.genres.first.id;
     }
 
     if (detectedId != null && _homeStore.selectedGenreId != detectedId) {
-      // Immediate state update in MobX
       _homeStore.setSelectedGenre(detectedId);
     }
   }
@@ -169,32 +162,29 @@ class _HomePageState extends State<HomePage> {
           child: CustomScrollView(
             controller: _mainScrollController,
             slivers: [
-            _buildSectionHeader('For You ⭐'),
-            _buildRecommendations(),
-            const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
-            _buildMoviesHeader(),
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              _buildSectionHeader('For You ⭐'),
+              _buildRecommendations(),
+              const SliverToBoxAdapter(child: Divider(color: Colors.white10, height: 40, thickness: 1)),
+              _buildMoviesHeader(),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-            // Sticky Navigation Bar
-            Observer(
-              builder: (_) {
-                // Hide sticky header when searching
-                if (_homeStore.searchQuery.isNotEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-                
-                return SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _GenreNavDelegate(
-                    homeStore: _homeStore,
-                    chipScrollController: _chipScrollController,
-                    chipWidth: _chipWidth,
-                    onTap: _onChipTap,
-                  ),
-                );
-              },
-            ),
+              Observer(
+                builder: (_) {
+                  if (_homeStore.searchQuery.isNotEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  
+                  return SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _GenreNavDelegate(
+                      homeStore: _homeStore,
+                      chipScrollController: _chipScrollController,
+                      chipWidth: _chipWidth,
+                      onTap: _onChipTap,
+                    ),
+                  );
+                },
+              ),
 
-            // Main Category List
-            _buildCategoryList(),
+              _buildCategoryList(),
               
               SliverToBoxAdapter(child: SizedBox(height: 100.h)),
             ],
@@ -224,12 +214,11 @@ class _HomePageState extends State<HomePage> {
             Text('Movies 🎬',
               style: GoogleFonts.inter(color: AppTheme.white, fontSize: 24.sp, fontWeight: FontWeight.w700)),
             SizedBox(height: 16.h),
-            // Updated Search Bar Design (Screenshot Match)
             Container(
               height: 48.h,
               decoration: BoxDecoration(
-                color: const Color(0xFFF2EBEB), // Light pinkish-gray from screenshot
-                borderRadius: BorderRadius.circular(24.r), // Capsule shape
+                color: const Color(0xFFF2EBEB),
+                borderRadius: BorderRadius.circular(24.r),
               ),
               padding: EdgeInsets.symmetric(horizontal: 16.w),
               child: Row(
@@ -312,12 +301,10 @@ class _HomePageState extends State<HomePage> {
                 builder: (_) {
                   var movies = _homeStore.moviesByGenre[genre.id] ?? [];
                   
-                  // Filter movies based on search query
                   if (_homeStore.searchQuery.isNotEmpty) {
                     movies = movies.where((m) => m.title.toLowerCase().contains(_homeStore.searchQuery.toLowerCase())).toList();
                   }
 
-                  // Hide category if no movies match
                   if (movies.isEmpty && _homeStore.searchQuery.isNotEmpty) {
                     return const SizedBox.shrink();
                   }
@@ -367,7 +354,6 @@ class _GenreNavDelegate extends SliverPersistentHeaderDelegate {
       height: 60.h,
       child: Observer(
         builder: (_) {
-          // Explicitly reading this to ensure MobX tracking is solid
           final selectedId = homeStore.selectedGenreId;
           
           return ListView.builder(

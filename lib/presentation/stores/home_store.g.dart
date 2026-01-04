@@ -118,6 +118,24 @@ mixin _$HomeStore on _HomeStore, Store {
     });
   }
 
+  late final _$isAutoScrollingAtom = Atom(
+    name: '_HomeStore.isAutoScrolling',
+    context: context,
+  );
+
+  @override
+  bool get isAutoScrolling {
+    _$isAutoScrollingAtom.reportRead();
+    return super.isAutoScrolling;
+  }
+
+  @override
+  set isAutoScrolling(bool value) {
+    _$isAutoScrollingAtom.reportWrite(value, super.isAutoScrolling, () {
+      super.isAutoScrolling = value;
+    });
+  }
+
   late final _$searchQueryAtom = Atom(
     name: '_HomeStore.searchQuery',
     context: context,
@@ -188,6 +206,18 @@ mixin _$HomeStore on _HomeStore, Store {
   );
 
   @override
+  void setAutoScrolling(bool value) {
+    final _$actionInfo = _$_HomeStoreActionController.startAction(
+      name: '_HomeStore.setAutoScrolling',
+    );
+    try {
+      return super.setAutoScrolling(value);
+    } finally {
+      _$_HomeStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   void setSelectedGenre(int id) {
     final _$actionInfo = _$_HomeStoreActionController.startAction(
       name: '_HomeStore.setSelectedGenre',
@@ -220,6 +250,7 @@ genres: ${genres},
 isLoadingRecommended: ${isLoadingRecommended},
 isLoadingGenres: ${isLoadingGenres},
 selectedGenreId: ${selectedGenreId},
+isAutoScrolling: ${isAutoScrolling},
 searchQuery: ${searchQuery}
     ''';
   }

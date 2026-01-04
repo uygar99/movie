@@ -34,7 +34,6 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Listen to store changes to start/stop pulse
     _pulseController.repeat(reverse: true);
   }
 
@@ -107,7 +106,7 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: Padding(
-                padding: EdgeInsets.all(8.w), // Better touch target
+                padding: EdgeInsets.all(8.w),
                 child: Icon(Icons.close, color: AppTheme.white, size: 24.w),
               ),
             ),
@@ -139,7 +138,6 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
       children: [
         Column(
           children: [
-            // Header Row inside Stack
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -152,7 +150,7 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
                 SizedBox(width: 20.w),
                 SizedBox(
                   width: 60.w,
-                  height: 24.h, // Fixed height for header alignment
+                  height: 24.h,
                   child: Center(
                     child: Text('PRO',
                       style: GoogleFonts.inter(color: AppTheme.white, fontSize: 13.sp, fontWeight: FontWeight.w700)),
@@ -167,7 +165,6 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
             _buildComparisonRow('Ad-Free Experience', false, proTickCount >= 4),
           ],
         ),
-        // Continuous Red border around the PRO column
         Positioned(
           right: 0,
           top: 0,
@@ -251,7 +248,6 @@ class _PaywallPageState extends State<PaywallPage> with TickerProviderStateMixin
         final isSelected = _store.selectedPackage?.identifier == pkg.identifier;
         final isYearly = pkg.packageType == PackageType.annual;
         
-        String priceText = pkg.storeProduct.priceString;
         String suffix = '';
         String subtitle = 'Subscription plan';
 
