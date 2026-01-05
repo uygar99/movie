@@ -33,7 +33,6 @@ class _PaywallPageV2State extends State<PaywallPageV2> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Background Image
           Positioned(
             top: 0,
             left: 0,
@@ -46,7 +45,6 @@ class _PaywallPageV2State extends State<PaywallPageV2> {
             ),
           ),
 
-          // 2. Blend Gradient
           Positioned(
             top: 0,
             left: 0,
@@ -69,7 +67,6 @@ class _PaywallPageV2State extends State<PaywallPageV2> {
             ),
           ),
 
-          // 3. Content Layout (Flex based)
           SafeArea(
             child: Observer(
               builder: (_) {
@@ -77,15 +74,15 @@ class _PaywallPageV2State extends State<PaywallPageV2> {
                   padding: EdgeInsets.symmetric(horizontal: 24.w),
                   child: Column(
                     children: [
-                      _buildHeader(), // Close button
+                      _buildHeader(),
                       
-                      const Spacer(flex: 2), // Balanced space for the image area
+                      const Spacer(flex: 2),
                       
                       _buildAppName(),
                       SizedBox(height: 20.h),
                       _buildFeatureList(),
                       
-                      const Spacer(flex: 1), // Dynamic gap
+                      const Spacer(flex: 1),
                       
                       _buildSubscriptionOptions(),
                       SizedBox(height: 24.h),

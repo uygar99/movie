@@ -39,31 +39,27 @@ abstract class _PaywallStore with Store {
   String? error;
 
   @observable
-  int paywallVersion = 1; // 1 for Original, 2 for the new Full-Image version
+  int paywallVersion = 1;
 
   @action
   Future<void> init() async {
     print('PaywallStore: Initializing...');
     isLoading = true;
     try {
-      // 1. Initialize RevenueCat
       final isConfigured = await Purchases.isConfigured;
       if (!isConfigured) {
         await Purchases.configure(PurchasesConfiguration(_apiKey));
       }
 
-      // Check current customer info
       customerInfo = await Purchases.getCustomerInfo();
       isPremium = customerInfo?.entitlements.active.containsKey(_entitlementId) ?? false;
       
-      // Fetch Offerings for custom UI
       final offerings = await Purchases.getOfferings();
       if (offerings.current != null) {
         currentOffering = offerings.current;
         packages.clear();
         packages.addAll(offerings.current!.availablePackages);
         
-        // Default selection: Monthly
         if (packages.isNotEmpty) {
           selectedPackage = packages.firstWhere(
             (p) => p.packageType == PackageType.monthly,
@@ -77,7 +73,6 @@ abstract class _PaywallStore with Store {
         isPremium = info.entitlements.active.containsKey(_entitlementId);
       });
 
-      // 2. Remote Config Logic
       await _fetchRemoteConfig();
 
     } catch (e) {
@@ -93,25 +88,20 @@ abstract class _PaywallStore with Store {
     try {
       final remoteConfig = FirebaseRemoteConfig.instance;
       
-      // Configure settings (fetch timeout and minimum fetch interval)
       await remoteConfig.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 10),
-        minimumFetchInterval: Duration.zero, // Set to zero for testing to see changes immediately
+        minimumFetchInterval: Duration.zero,
       ));
 
-      // Set default values
       await remoteConfig.setDefaults({
-        "paywall_version": 1, // Default to the new one
+        "paywall_version": 1,
       });
 
-      // Fetch and activate
       await remoteConfig.fetchAndActivate();
       
-      // Update observable
       paywallVersion = remoteConfig.getInt("paywall_version");
       print('PaywallStore: Remote Config paywallVersion = $paywallVersion');
 
-      // Log paywall view
       FirebaseAnalytics.instance.logEvent(
         name: 'paywall_view',
         parameters: {'version': paywallVersion},

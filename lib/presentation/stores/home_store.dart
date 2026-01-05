@@ -51,7 +51,6 @@ abstract class _HomeStore with Store {
     await fetchGenres();
     await fetchRecommended(selectedGenreIds, selectedMovieIds);
     
-    // Fetch 9 movies for each genre (or at least for the first few to start)
     for (var i = 0; i < genres.length; i++) {
         fetchMoviesForGenre(genres[i].id);
     }
@@ -77,7 +76,6 @@ abstract class _HomeStore with Store {
   @action
   Future<void> fetchRecommended(List<int> genreIds, List<int> movieIds) async {
     isLoadingRecommended = true;
-    // We can use discover endpoint with selected genres
     final result = await discoverMovies(DiscoverMoviesParams(
       withGenres: genreIds.join(','),
     ));

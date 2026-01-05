@@ -29,7 +29,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
   }
 
   Future<void> _onContinue() async {
-    // Automatically show custom paywall if user is not premium
     if (!_paywallStore.isPremium) {
       if (mounted) {
         await Navigator.of(context).push(
@@ -67,7 +66,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
         ),
         child: Stack(
           children: [
-            // 1. Header (Dynamic Title/Desc)
             Positioned(
               top: 88.h,
               left: 20.w,
@@ -105,7 +103,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
               ),
             ),
 
-            // 2. Genres Grid
             Positioned(
               top: 180.h,
               left: 0,
@@ -134,7 +131,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                         ),
                         itemCount: widget.store.genres.length,
                         itemBuilder: (context, index) {
-                          // CORRECT MOBX PRACTICE: Wrap individual items in Observer for reactive updates
                           return Observer(
                             builder: (_) {
                               final genre = widget.store.genres[index];
@@ -218,7 +214,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
                         },
                       ),
                       
-                      // Masks
                       Positioned(
                         top: 0,
                         left: 0,
@@ -259,7 +254,6 @@ class _OnboardingGenresPageState extends State<OnboardingGenresPage> {
               ),
             ),
 
-            // 3. Footer Button
             Positioned(
               top: 677.h,
               left: 20.w,

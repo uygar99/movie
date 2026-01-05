@@ -15,7 +15,6 @@ abstract class _OnboardingStore with Store {
 
   _OnboardingStore(this.getPopularMovies, this.getGenres);
 
-  // Movies
   @observable
   ObservableList<Movie> movies = ObservableList<Movie>();
 
@@ -31,11 +30,9 @@ abstract class _OnboardingStore with Store {
   @observable
   int currentMoviePage = 1;
 
-  // Wheel scroll position
   @observable
   double wheelScrollPosition = 0.0;
 
-  // Genres
   @observable
   ObservableList<Genre> genres = ObservableList<Genre>();
 
@@ -48,7 +45,6 @@ abstract class _OnboardingStore with Store {
   @observable
   String? genresError;
 
-  // Computed
   @computed
   bool get canContinueFromMovies => selectedMovieIds.length >= 3;
 
@@ -63,7 +59,6 @@ abstract class _OnboardingStore with Store {
   List<Genre> get selectedGenres =>
       genres.where((g) => selectedGenreIds.contains(g.id)).toList();
 
-  // Actions
   @action
   Future<void> loadMovies({bool loadMore = false}) async {
     if (isLoadingMovies) return;
@@ -142,4 +137,3 @@ abstract class _OnboardingStore with Store {
     wheelScrollPosition = position;
   }
 }
-

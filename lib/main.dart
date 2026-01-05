@@ -12,28 +12,22 @@ import 'presentation/stores/onboarding_store.dart';
 import 'presentation/stores/paywall_store.dart';
 
 void main() async {
-  // 1. Initialize Flutter binding and preserve native splash
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   
-  // 2. Set system UI to black while loading
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.black,
     systemNavigationBarColor: Colors.black,
   ));
   
-  // 3. Load env vars
   await dotenv.load(fileName: '.env');
   
-  // 4. Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // 5. Setup DI
   await setupDependencyInjection();
   
-  // 6. Pre-load critical data while native splash is still showing
   try {
     final onboardingStore = getIt<OnboardingStore>();
     final paywallStore = getIt<PaywallStore>();
@@ -47,10 +41,8 @@ void main() async {
     debugPrint('Init error: $e');
   }
   
-  // 7. Ensure minimum splash duration (2 seconds total feel)
   await Future.delayed(const Duration(milliseconds: 500));
   
-  // 8. Remove native splash and run app
   FlutterNativeSplash.remove();
   runApp(const MyApp());
 }
